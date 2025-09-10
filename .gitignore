@@ -1,0 +1,37 @@
+# Environment files
+.env
+.env.local
+
+# Keytabs
+configs/kdc/*.keytab
+
+# Data directories
+data/postgres/*
+data/koji-storage/*
+data/logs/*
+
+# Koji source
+koji-src/
+
+# Backups
+backups/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Podman/Docker
+.dockerignore

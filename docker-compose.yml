@@ -1,0 +1,272 @@
+version: '3.8'
+
+services:
+  postgres:
+    build:
+      context: ./dockerfiles/postgres
+      dockerfile: Dockerfile
+    container_name: koji-boxed-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-koji}
+      POSTGRES_USER: ${POSTGRES_USER:-koji}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-koji_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:Z
+      - ./data/postgres:/var/lib/postgresql/backup:Z
+      - ./scripts/init-koji.sql:/docker-entrypoint-initdb.d/init-koji.sql:Z
+    #ports:
+    #  - "5432:5432"
+    networks:
+      koji-network:
+        aliases:
+          - postgres.koji.box
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-koji} -d ${POSTGRES_DB:-koji}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: ${POSTGRES_MEMORY_LIMIT:-1g}
+        reservations:
+          memory: 512m
+
+  kdc:
+    build:
+      context: ./dockerfiles/kdc
+      dockerfile: Dockerfile
+    container_name: koji-boxed-kdc
+    environment:
+      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
+      KRB5_KDC: kdc.koji.box
+      KRB5_ADMIN_SERVER: kdc.koji.box
+    volumes:
+      - ./configs/kdc:/etc/krb5kdc:Z
+      - kdc_data:/var/lib/krb5kdc:Z
+      - ./data/logs/kdc:/var/log/krb5kdc:Z
+    #ports:
+    #  - "88:88"
+    #  - "749:749"
+    #  - "464:464"
+    networks:
+      koji-network:
+        aliases:
+          - kdc.koji.box
+    healthcheck:
+      test: ["CMD-SHELL", "/usr/local/bin/health-check.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
+
+  koji-storage:
+    build:
+      context: ./dockerfiles/storage
+      dockerfile: Dockerfile
+    container_name: koji-boxed-storage
+    depends_on:
+      kdc:
+        condition: service_healthy
+    environment:
+      KOJI_STORAGE_PATH: ${KOJI_STORAGE_PATH:-/mnt/koji}
+      KOJI_STORAGE_PORT: ${KOJI_STORAGE_PORT:-8080}
+    volumes:
+      - koji_storage:/mnt/koji
+      - ./data/koji-storage:/mnt/koji/local:Z
+    #ports:
+    #  - "8082:8080"
+    networks:
+      koji-network:
+        aliases:
+          - koji-storage.koji.box
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  koji-hub:
+    build:
+      context: ./dockerfiles/koji-hub
+      dockerfile: Dockerfile
+    container_name: koji-boxed-koji-hub
+    depends_on:
+      postgres:
+        condition: service_healthy
+      koji-storage:
+        condition: service_healthy
+      kdc:
+        condition: service_healthy
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-koji}
+      POSTGRES_USER: ${POSTGRES_USER:-koji}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-koji_password}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      KOJI_HUB_HOST: ${KOJI_HUB_HOST:-koji-hub}
+      KOJI_HUB_PORT: ${KOJI_HUB_PORT:-8080}
+      KOJI_STORAGE_HOST: koji-storage
+      KOJI_STORAGE_PORT: 8080
+      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
+      KRB5_KDC: kdc.koji.box
+      KRB5_ADMIN_SERVER: kdc.koji.box
+    volumes:
+      - ./configs/koji-hub:/etc/koji-hub:Z
+      - ./configs/kdc:/etc/krb5kdc:Z
+      - koji_storage:/mnt/koji:ro
+      - ./data/logs/hub:/var/log/koji-hub:Z
+    #ports:
+    #  - "8080:8080"
+    networks:
+      koji-network:
+        aliases:
+          - koji-hub.koji.box
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/status || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: ${HUB_MEMORY_LIMIT:-512m}
+        reservations:
+          memory: 256m
+
+  koji-worker:
+    build:
+      context: ./dockerfiles/koji-worker
+      dockerfile: Dockerfile
+    container_name: koji-boxed-koji-worker
+    depends_on:
+      koji-hub:
+        condition: service_healthy
+      koji-storage:
+        condition: service_healthy
+      kdc:
+        condition: service_healthy
+    environment:
+      KOJI_HUB_HOST: ${KOJI_HUB_HOST:-koji-hub}
+      KOJI_HUB_PORT: ${KOJI_HUB_PORT:-8080}
+      KOJI_STORAGE_HOST: koji-storage
+      KOJI_STORAGE_PORT: 8080
+      WORKER_NAME: koji-worker-1
+      WORKER_CAPACITY: 2
+      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
+      KRB5_KDC: kdc.koji.box
+      KRB5_ADMIN_SERVER: kdc.koji.box
+    volumes:
+      - koji_storage:/mnt/koji
+      - ./configs/kdc:/etc/krb5kdc:Z
+      - ./data/logs/worker:/var/log/koji-worker
+    networks:
+      koji-network:
+        aliases:
+          - koji-worker-1.koji.box
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep koji-worker || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: ${WORKER_MEMORY_LIMIT:-1g}
+        reservations:
+          memory: 512m
+
+  koji-web:
+    build:
+      context: ./dockerfiles/koji-web
+      dockerfile: Dockerfile
+    container_name: koji-boxed-koji-web
+    depends_on:
+      koji-hub:
+        condition: service_healthy
+      kdc:
+        condition: service_healthy
+    environment:
+      KOJI_HUB_HOST: ${KOJI_HUB_HOST:-koji-hub}
+      KOJI_HUB_PORT: ${KOJI_HUB_PORT:-8080}
+      KOJI_WEB_HOST: ${KOJI_WEB_HOST:-koji-web}
+      KOJI_WEB_PORT: ${KOJI_WEB_PORT:-8080}
+      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
+      KRB5_KDC: kdc.koji.box
+      KRB5_ADMIN_SERVER: kdc.koji.box
+    volumes:
+      - ./configs/koji-web:/etc/koji-web:Z
+      - ./configs/kdc:/etc/krb5kdc:Z
+      - ./data/logs/web:/var/log/koji-web:Z
+    #ports:
+    #  - "8081:8080"
+    networks:
+      koji-network:
+        aliases:
+          - koji-web.koji.box
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: ${WEB_MEMORY_LIMIT:-256m}
+        reservations:
+          memory: 128m
+
+  koji-client:
+    build:
+      context: ./dockerfiles/koji-client
+      dockerfile: Dockerfile
+    container_name: koji-boxed-koji-client
+    depends_on:
+      koji-hub:
+        condition: service_healthy
+      kdc:
+        condition: service_healthy
+    environment:
+      KOJI_HUB_HOST: ${KOJI_HUB_HOST:-koji-hub}
+      KOJI_HUB_PORT: ${KOJI_HUB_PORT:-8080}
+      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
+      KRB5_KDC: kdc.koji.box
+      KRB5_ADMIN_SERVER: kdc.koji.box
+    volumes:
+      - ./configs/koji-client:/etc/koji:Z
+      - ./configs/kdc:/etc/krb5kdc:Z
+      - koji_storage:/mnt/koji
+      - ./data/logs/client:/var/log/koji-client:Z
+    networks:
+      koji-network:
+        aliases:
+          - koji-client.koji.box
+    profiles:
+      - tools
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
+
+networks:
+  koji-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${KOJI_SUBNET:-172.20.0.0/16}
+
+volumes:
+  postgres_data:
+    driver: local
+  koji_storage:
+    driver: local
+  kdc_data:
+    driver: local
