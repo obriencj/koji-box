@@ -8,6 +8,7 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
 
 - **PostgreSQL Database** - Backend data storage
 - **KDC (Kerberos)** - Authentication service with realm KOJI.BOX
+- **Nginx Proxy** - Reverse proxy and static content server
 - **Koji Hub** - Central coordination service
 - **Koji Worker(s)** - Build execution nodes
 - **Koji Web** - Web frontend interface
@@ -29,10 +30,14 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
    ```
 
 3. **Access services**:
-   - Koji Hub: http://localhost:8080 (or http://koji-hub.koji.box:8080)
-   - Koji Web: http://localhost:8081 (or http://koji-web.koji.box:8081)
-   - Storage: http://localhost:8082 (or http://koji-storage.koji.box:8082)
-   - KDC: localhost:88 (or kdc.koji.box:88) (Kerberos)
+   - **Main Entry Point**: http://localhost:8080 (nginx proxy)
+     - `/` - Koji Web interface
+     - `/kojihub/` - Koji Hub API
+     - `/downloads/` - Static file downloads with indexing
+   - **Direct Access** (if needed):
+     - Koji Hub: http://localhost:8080 (or http://koji-hub.koji.box:8080)
+     - Koji Web: http://localhost:8081 (or http://koji-web.koji.box:8081)
+     - KDC: localhost:88 (or kdc.koji.box:88) (Kerberos)
 
 ## Prerequisites
 
@@ -58,15 +63,14 @@ koji-boxed/
 │   └── koji-client/                 # Client configuration
 ├── data/                            # Persistent data volumes
 │   ├── postgres/                    # Database data
-│   ├── koji-storage/                # NFS/HTTP storage
 │   └── logs/                        # Service logs
 ├── dockerfiles/                     # Individual service Dockerfiles
 │   ├── koji-hub/
 │   ├── koji-worker/
 │   ├── koji-web/
 │   ├── koji-client/
-│   ├── postgres/
-│   └── storage/
+│   ├── nginx/
+│   └── postgres/
 └── tests/                           # Integration tests
     ├── test-scripts/
     └── expected-results/
@@ -97,6 +101,7 @@ koji-boxed/
 - `make shell-worker` - Open shell in Koji Worker container
 - `make shell-web` - Open shell in Koji Web container
 - `make shell-kdc` - Open shell in KDC container
+- `make shell-nginx` - Open shell in Nginx container
 
 ### Kerberos
 
@@ -130,8 +135,8 @@ KOJI_HUB_HOST=koji-hub
 KOJI_HUB_PORT=8080
 
 # Storage Configuration
-KOJI_STORAGE_HOST=koji-storage
-KOJI_STORAGE_PORT=8080
+KOJI_STORAGE_HOST=nginx
+KOJI_STORAGE_PORT=80
 ```
 
 ### Service Configuration
@@ -252,8 +257,17 @@ postgres → koji-hub → koji-worker
     ↓         ↓           ↓
    kdc ←──────┴───────────┘
     ↓
-koji-web
+koji-web ←─── nginx (main entry point)
 ```
+
+### Nginx Routing
+
+The nginx proxy provides a unified entry point with the following routing:
+
+- **`/`** - Routes to Koji Web interface (default)
+- **`/kojihub/`** - Routes to Koji Hub API
+- **`/downloads/`** - Serves static content from `/mnt/koji` with directory indexing
+- **`/health`** - Nginx health check endpoint
 
 ### Kerberos Configuration
 
@@ -271,7 +285,7 @@ All services are accessible via both short names and full domain names:
 
 - `postgres` or `postgres.koji.box`
 - `kdc` or `kdc.koji.box`
-- `koji-storage` or `koji-storage.koji.box`
+- `nginx` or `koji.box` (main entry point)
 - `koji-hub` or `koji-hub.koji.box`
 - `koji-worker-1` or `koji-worker-1.koji.box`
 - `koji-web` or `koji-web.koji.box`

@@ -100,6 +100,9 @@ logs-postgres: ## Show logs for PostgreSQL
 logs-kdc: ## Show logs for KDC
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) logs -f kdc
 
+logs-nginx: ## Show logs for Nginx
+	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) logs -f nginx
+
 status: ## Show status of all services
 	@echo -e "$(BLUE)Service Status:$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) ps
@@ -180,6 +183,9 @@ shell-postgres: ## Open shell in PostgreSQL container
 
 shell-kdc: ## Open shell in KDC container
 	podman exec -it koji-boxed-kdc-1 /bin/bash
+
+shell-nginx: ## Open shell in Nginx container
+	podman exec -it koji-boxed-nginx-1 /bin/bash
 
 clean: ## Remove all containers and images
 	@echo -e "$(BLUE)Cleaning up...$(NC)"

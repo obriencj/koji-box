@@ -66,32 +66,6 @@ services:
         reservations:
           memory: 128m
 
-  koji-storage:
-    build:
-      context: ./dockerfiles/storage
-      dockerfile: Dockerfile
-    container_name: koji-boxed-storage
-    depends_on:
-      kdc:
-        condition: service_healthy
-    environment:
-      KOJI_STORAGE_PATH: ${KOJI_STORAGE_PATH:-/mnt/koji}
-      KOJI_STORAGE_PORT: ${KOJI_STORAGE_PORT:-8080}
-    volumes:
-      - koji_storage:/mnt/koji
-      - ./data/koji-storage:/mnt/koji/local:Z
-    #ports:
-    #  - "8082:8080"
-    networks:
-      koji-network:
-        aliases:
-          - koji-storage.koji.box
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
   koji-hub:
     build:
       context: ./dockerfiles/koji-hub
@@ -99,8 +73,6 @@ services:
     container_name: koji-boxed-koji-hub
     depends_on:
       postgres:
-        condition: service_healthy
-      koji-storage:
         condition: service_healthy
       kdc:
         condition: service_healthy
@@ -227,11 +199,6 @@ services:
       context: ./dockerfiles/koji-client
       dockerfile: Dockerfile
     container_name: koji-boxed-koji-client
-    depends_on:
-      koji-hub:
-        condition: service_healthy
-      kdc:
-        condition: service_healthy
     environment:
       KOJI_HUB_HOST: ${KOJI_HUB_HOST:-koji-hub}
       KOJI_HUB_PORT: ${KOJI_HUB_PORT:-8080}
@@ -255,6 +222,38 @@ services:
           memory: 256m
         reservations:
           memory: 128m
+
+  nginx:
+    build:
+      context: ./dockerfiles/nginx
+      dockerfile: Dockerfile
+    container_name: koji-boxed-nginx
+    depends_on:
+      koji-web:
+        condition: service_healthy
+      koji-hub:
+        condition: service_healthy
+    volumes:
+      - ./configs/nginx:/etc/nginx:Z
+      - koji_storage:/mnt/koji:ro
+      - ./data/logs/nginx:/var/log/nginx:Z
+    ports:
+      - "8080:80"
+    networks:
+      koji-network:
+        aliases:
+          - koji.box
+    healthcheck:
+      test: ["CMD-SHELL", "/usr/local/bin/health-check.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+        reservations:
+          memory: 64m
 
 networks:
   koji-network:
