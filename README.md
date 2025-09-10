@@ -50,21 +50,21 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
 
 ```
 koji-boxed/
-├── Makefile                          # Main orchestration file
-├── docker-compose.yml                # Service definitions
-├── .env.example                      # Environment variables template
-├── scripts/                          # Utility scripts
+├── Makefile                         # Main orchestration file
+├── docker-compose.yml               # Service definitions
+├── .env.example                     # Environment variables template
+├── scripts/                         # Utility scripts
 │   ├── setup-koji-db.sh             # Database initialization
 │   ├── setup-koji-hub.sh            # Hub configuration
 │   └── cleanup.sh                   # Cleanup utilities
-├── configs/                          # Configuration files
+├── configs/                         # Configuration files
 │   ├── koji-hub/                    # Hub configuration
 │   ├── koji-web/                    # Web UI configuration
 │   └── koji-client/                 # Client configuration
 ├── data/                            # Persistent data volumes
 │   ├── postgres/                    # Database data
 │   └── logs/                        # Service logs
-├── dockerfiles/                     # Individual service Dockerfiles
+├── containers/                      # Individual service Dockerfiles
 │   ├── koji-hub/
 │   ├── koji-worker/
 │   ├── koji-web/

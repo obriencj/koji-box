@@ -3,7 +3,7 @@ version: '3.8'
 services:
   postgres:
     build:
-      context: ./dockerfiles/postgres
+      context: ./containers/postgres
       dockerfile: Dockerfile
     container_name: koji-boxed-postgres
     environment:
@@ -35,7 +35,7 @@ services:
 
   kdc:
     build:
-      context: ./dockerfiles/kdc
+      context: ./containers/kdc
       dockerfile: Dockerfile
     container_name: koji-boxed-kdc
     environment:
@@ -68,7 +68,7 @@ services:
 
   koji-hub:
     build:
-      context: ./dockerfiles/koji-hub
+      context: ./containers/koji-hub
       dockerfile: Dockerfile
     container_name: koji-boxed-koji-hub
     depends_on:
@@ -114,7 +114,7 @@ services:
 
   koji-worker:
     build:
-      context: ./dockerfiles/koji-worker
+      context: ./containers/koji-worker
       dockerfile: Dockerfile
     container_name: koji-boxed-koji-worker
     depends_on:
@@ -156,7 +156,7 @@ services:
 
   koji-web:
     build:
-      context: ./dockerfiles/koji-web
+      context: ./containers/koji-web
       dockerfile: Dockerfile
     container_name: koji-boxed-koji-web
     depends_on:
@@ -196,7 +196,7 @@ services:
 
   koji-client:
     build:
-      context: ./dockerfiles/koji-client
+      context: ./containers/koji-client
       dockerfile: Dockerfile
     container_name: koji-boxed-koji-client
     environment:
@@ -225,7 +225,7 @@ services:
 
   nginx:
     build:
-      context: ./dockerfiles/nginx
+      context: ./containers/nginx
       dockerfile: Dockerfile
     container_name: koji-boxed-nginx
     depends_on:
