@@ -12,12 +12,14 @@ import time
 import signal
 from pathlib import Path
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
 
 def install_koji():
     """Install Koji from source"""
@@ -111,3 +113,6 @@ if __name__ == '__main__':
 
     # Start worker service
     start_worker()
+
+
+# The end.

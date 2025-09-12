@@ -43,19 +43,21 @@ services:
       KRB5_KDC: kdc.koji.box
       KRB5_ADMIN_SERVER: kdc.koji.box
     volumes:
-      - ./configs/kdc:/etc/krb5kdc:Z
       - kdc_data:/var/lib/krb5kdc:Z
+      - ./configs/kdc/conf:/etc/krb5kdc:Z
+      - ./configs/kdc/kdc-init.d:/var/lib/krb5kdc/kdc-init.d:Z
       - ./data/logs/kdc:/var/log/krb5kdc:Z
-    #ports:
-    #  - "88:88"
-    #  - "749:749"
-    #  - "464:464"
+      - ./data/keytabs:/mnt/keytabs:Z
+    expose:
+      - "88"
+      - "749"
+      - "464"
     networks:
       koji-network:
         aliases:
           - kdc.koji.box
     healthcheck:
-      test: ["CMD-SHELL", "/usr/local/bin/health-check.sh"]
+      test: ["CMD-SHELL", "/bin/health-check.sh"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -90,9 +92,9 @@ services:
       KRB5_KDC: kdc.koji.box
       KRB5_ADMIN_SERVER: kdc.koji.box
     volumes:
+      - koji_storage:/mnt/koji:ro
       - ./configs/koji-hub:/etc/koji-hub:Z
       - ./configs/kdc:/etc/krb5kdc:Z
-      - koji_storage:/mnt/koji:ro
       - ./data/logs/hub:/var/log/koji-hub:Z
     #ports:
     #  - "8080:8080"
@@ -208,7 +210,7 @@ services:
     volumes:
       - ./configs/koji-client:/etc/koji:Z
       - ./configs/kdc:/etc/krb5kdc:Z
-      - koji_storage:/mnt/koji
+      - koji_storage:/mnt/koji:ro
       - ./data/logs/client:/var/log/koji-client:Z
     networks:
       koji-network:
