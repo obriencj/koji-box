@@ -6,14 +6,21 @@ A containerized integration testing platform for the Koji build system. This pro
 
 Boxed Koji creates a fully functional Koji build system with all necessary components:
 
+### ✅ Working Services
 - **PostgreSQL Database** - Backend data storage
 - **KDC (Kerberos)** - Authentication service with realm KOJI.BOX
-- **Nginx Proxy** - Reverse proxy and static content server
+- **Keytab Service** - REST API for principal and worker management
 - **Koji Hub** - Central coordination service
-- **Koji Worker(s)** - Build execution nodes
-- **Koji Web** - Web frontend interface
-- **Storage Service** - NFS + HTTP file storage
 - **Koji Client** - CLI interface for testing
+
+### 🚧 In Progress Services
+- **Nginx Proxy** - Reverse proxy and static content server
+- **Koji Web** - Web frontend interface
+- **Test Runner** - Automated testing framework
+
+### 📋 Planned Services
+- **Koji Worker(s)** - Build execution nodes
+- **Storage Service** - NFS + HTTP file storage
 
 ## Quick Start
 
@@ -30,14 +37,14 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
    ```
 
 3. **Access services**:
-   - **Main Entry Point**: http://localhost:8080 (nginx proxy)
-     - `/` - Koji Web interface
-     - `/kojihub/` - Koji Hub API
-     - `/downloads/` - Static file downloads with indexing
-   - **Direct Access** (if needed):
-     - Koji Hub: http://localhost:8080 (or http://koji-hub.koji.box:8080)
+   - **Working Services**:
+     - Koji Hub: http://koji-hub.koji.box:80 (or via nginx when ready)
+     - Keytab Service: http://keytabs.koji.box:5000
+     - KDC: kdc.koji.box:88 (Kerberos)
+     - PostgreSQL: postgres.koji.box:5432
+   - **In Progress** (coming soon):
+     - Main Entry Point: http://localhost:8080 (nginx proxy)
      - Koji Web: http://localhost:8081 (or http://koji-web.koji.box:8081)
-     - KDC: localhost:88 (or kdc.koji.box:88) (Kerberos)
 
 ## Prerequisites
 
@@ -54,23 +61,22 @@ koji-boxed/
 ├── docker-compose.yml               # Service definitions
 ├── .env.example                     # Environment variables template
 ├── scripts/                         # Utility scripts
-│   ├── setup-koji-db.sh             # Database initialization
-│   ├── setup-koji-hub.sh            # Hub configuration
 │   └── cleanup.sh                   # Cleanup utilities
-├── configs/                         # Configuration files
-│   ├── koji-hub/                    # Hub configuration
-│   ├── koji-web/                    # Web UI configuration
-│   └── koji-client/                 # Client configuration
 ├── data/                            # Persistent data volumes
 │   ├── postgres/                    # Database data
+│   ├── keytabs/                     # Principal keytabs
 │   └── logs/                        # Service logs
-├── containers/                      # Individual service Dockerfiles
-│   ├── koji-hub/
-│   ├── koji-worker/
-│   ├── koji-web/
-│   ├── koji-client/
-│   ├── nginx/
-│   └── postgres/
+├── services /                       # Individual service Dockerfiles
+│   ├── common/                      # Shared components
+│   ├── kdc/                         # ✅ Kerberos KDC service
+│   ├── koji-hub/                    # ✅ Koji Hub service
+│   ├── koji-client/                 # ✅ Koji CLI client
+│   ├── keytab-service/              # ✅ Keytab management service
+│   ├── postgres/                    # ✅ PostgreSQL database
+│   ├── koji-worker/                 # 📋 Planned: Build workers
+│   ├── koji-web/                    # 🚧 In Progress: Web interface
+│   ├── nginx/                       # 🚧 In Progress: Reverse proxy
+│   └── test-runner/                 # 🚧 In Progress: Test automation
 └── tests/                           # Integration tests
     ├── test-scripts/
     └── expected-results/
@@ -110,6 +116,32 @@ koji-boxed/
 - `make list-principals` - List Kerberos principals
 - `make test-kerberos` - Test Kerberos authentication
 
+### Keytab Service
+
+- `make logs-keytab-service` - Show logs for Keytab Service
+
+The Keytab Service is an internal Flask REST application that manages Koji principals and worker hosts. It provides:
+
+- **Principal Management**: Creates principals in the KDC and generates keytabs
+- **Worker Registration**: Registers worker hosts with the Koji hub using admin authentication
+- **Static File Serving**: Serves principal keytabs from the shared data directory
+- **Koji CLI Integration**: Automatically installs and configures Koji client tools at startup
+
+**API Endpoints:**
+- `GET /api/v1/principal/<principal_name>` - Get or create a principal and return its keytab
+- `GET /api/v1/worker/<worker_name>` - Get or create a worker host and return its keytab
+- `GET /principals/<filename>` - Serve principal keytab files statically
+- `GET /health` - Health check endpoint
+
+**Usage:**
+```bash
+# Get a principal keytab
+curl -o my-principal.keytab http://keytabs.koji.box:80/api/v1/principal/my-principal
+
+# Get a worker keytab and register with hub
+curl -o worker.keytab http://keytabs.koji.box:80/api/v1/worker/worker-1
+```
+
 ### Maintenance
 
 - `make clean` - Remove all containers and images
@@ -143,9 +175,19 @@ KOJI_STORAGE_PORT=80
 
 Each service has its own configuration directory under `configs/`:
 
-- `configs/koji-hub/hub.conf` - Hub configuration
+- `configs/koji-hub/` - Hub configuration (now uses template-based generation)
 - `configs/koji-web/koji_web.conf` - Web UI configuration
 - `configs/koji-client/koji.conf` - Client configuration
+
+### Shared Configuration
+
+Common configuration templates are available in `configs/shared/`:
+
+- `configs/shared/koji.conf.template` - Koji client configuration template
+- `configs/shared/krb5.conf.template` - Kerberos configuration template
+- `configs/shared/hub.conf.template` - Koji hub configuration template
+
+These templates use environment variable substitution and are copied into containers during build, allowing for consistent configuration across all services.
 
 ## Usage Examples
 
@@ -216,11 +258,34 @@ make clean-data
    make shell-postgres
    ```
 
-3. **Build failures**:
+3. **Kerberos authentication issues**:
+   ```bash
+   make logs-kdc
+   make test-kerberos
+   make shell-kdc
+   ```
+
+4. **Keytab service issues**:
+   ```bash
+   make logs-keytab-service
+   curl http://keytabs.koji.box:5000/health
+   ```
+
+5. **Build failures**:
    ```bash
    make clean
    make rebuild
    ```
+
+### Service-Specific Troubleshooting
+
+**Working Services:**
+- PostgreSQL, KDC, Keytab Service, Koji Hub, Koji Client are fully functional
+- Check logs with `make logs-<service>` for specific issues
+
+**In Progress Services:**
+- Nginx, Koji Web, Test Runner may have configuration issues
+- These services are being actively developed and tested
 
 ### Logs
 
@@ -252,22 +317,86 @@ All services run on a custom bridge network (`koji-network`) with subnet `172.20
 
 ### Service Dependencies
 
+**Current Working Architecture:**
+```
+postgres → koji-hub ←─── koji-client
+    ↓         ↓
+   kdc ←──────┘
+    ↓
+keytab-service ←─── koji-client
+```
+
+**Planned Full Architecture:**
 ```
 postgres → koji-hub → koji-worker
     ↓         ↓           ↓
    kdc ←──────┴───────────┘
     ↓
 koji-web ←─── nginx (main entry point)
+    ↓
+keytab-service ←─── test-runner
 ```
 
-### Nginx Routing
+### Nginx Routing (In Progress)
 
-The nginx proxy provides a unified entry point with the following routing:
+The nginx proxy will provide a unified entry point with the following planned routing:
 
 - **`/`** - Routes to Koji Web interface (default)
 - **`/kojihub/`** - Routes to Koji Hub API
 - **`/downloads/`** - Serves static content from `/mnt/koji` with directory indexing
 - **`/health`** - Nginx health check endpoint
+
+**Current Status**: Nginx service is being configured and tested.
+
+## Current Working Services
+
+### ✅ PostgreSQL Database
+- **Status**: Fully functional
+- **Purpose**: Backend data storage for Koji
+- **Access**: `postgres.koji.box:5432`
+- **Features**: Automated schema initialization, persistent data storage
+
+### ✅ KDC (Kerberos)
+- **Status**: Fully functional
+- **Purpose**: Authentication service with realm KOJI.BOX
+- **Access**: `kdc.koji.box:88`
+- **Features**: Service principal management, admin user creation
+
+### ✅ Keytab Service
+- **Status**: Fully functional
+- **Purpose**: REST API for principal and worker management
+- **Access**: `keytabs.koji.box:5000`
+- **Features**: Principal creation, keytab generation, worker registration
+
+### ✅ Koji Hub
+- **Status**: Fully functional
+- **Purpose**: Central coordination service
+- **Access**: `koji-hub.koji.box:80`
+- **Features**: User management, build coordination, API endpoints
+
+### ✅ Koji Client
+- **Status**: Fully functional
+- **Purpose**: CLI interface for testing and administration
+- **Features**: Kerberos authentication, Koji command execution
+
+## Services In Progress
+
+### 🚧 Nginx Proxy
+- **Status**: Configuration in progress
+- **Purpose**: Reverse proxy and static content server
+- **Planned Access**: `localhost:8080` (main entry point)
+- **Features**: Unified routing, static file serving, health checks
+
+### 🚧 Koji Web
+- **Status**: Configuration in progress
+- **Purpose**: Web frontend interface
+- **Planned Access**: `koji-web.koji.box:8080` or via nginx
+- **Features**: Web-based Koji management interface
+
+### 🚧 Test Runner
+- **Status**: Development in progress
+- **Purpose**: Automated testing framework
+- **Features**: Integration test execution, test result reporting
 
 ### Kerberos Configuration
 

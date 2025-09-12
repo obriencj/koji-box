@@ -2,19 +2,11 @@
 .env
 .env.local
 
-# Keytabs
-configs/kdc/*.keytab
-
 # Data directories
-data/postgres/*
-data/koji-storage/*
-data/logs/*
+data/*
 
 # Koji source
 koji-src/
-
-# Backups
-backups/
 
 # Logs
 *.log

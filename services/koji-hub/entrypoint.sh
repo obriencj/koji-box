@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Koji Hub Entrypoint Script
+# Sets up Koji hub and starts the service
+
+set -e
+
+# --- Config (override with env) ---
+KRB5_REALM=${KRB5_REALM:-KOJI.BOX}
+KOJI_HUB_PRINC=${KOJI_HUB_PRINC:-HTTP/koji-hub.koji.box@${KRB5_REALM}}
+KOJI_ADMIN_PRINC=${KOJI_ADMIN_PRINC:-hub-admin@${KRB5_REALM}}
+
+# Function to log messages
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+log "Starting Koji Hub entrypoint..."
+
+# Generate hub configuration from template
+log "Generating Koji hub configuration..."
+if ! envsubst < /app/hub.conf.template > /etc/koji-hub/hub.conf; then
+    log "Error: Failed to generate hub configuration"
+    exit 1
+fi
+log "✓ Koji hub configured"
+
+# Generate apache configuration from template
+log "Generating Apache configuration..."
+if ! envsubst < /app/httpd.conf.template > /etc/koji-hub/httpd.conf; then
+    log "Error: Failed to generate Apache configuration"
+    exit 1
+fi
+cp -f /etc/koji-hub/httpd.conf /etc/httpd/conf.d/kojihub.conf
+log "✓ Apache configured"
+
+# Generate Koji client configuration from template
+log "Generating Koji client configuration..."
+if ! envsubst < /app/koji.conf.template > /etc/koji.conf; then
+    log "Error: Failed to generate Koji client configuration"
+    exit 1
+fi
+log "✓ Koji client configured"
+
+# Set up Kerberos configuration
+log "Generating Kerberos configuration..."
+if ! envsubst < /app/krb5.conf.template > /etc/krb5.conf; then
+    log "Error: Failed to generate Kerberos configuration"
+    exit 1
+fi
+log "✓ Kerberos configured"
+
+# Fetching hub keytab
+/app/fetch.sh principal ${KOJI_HUB_PRINC} /etc/koji-hub/koji-hub.keytab
+/app/fetch.sh principal ${KOJI_NGINX_PRINC} /etc/koji-hub/nginx.keytab
+
+# Fetching hub-admin keytab
+/app/fetch.sh principal ${KOJI_ADMIN_PRINC} /etc/koji-hub/admin.keytab
+kinit -kt /etc/koji-hub/admin.keytab ${KOJI_ADMIN_PRINC}
+
+# Set proper ownership
+log "Setting up file ownership..."
+chown -R koji:koji /etc/koji-hub /var/log/koji-hub /var/lib/koji-hub 2>/dev/null || true
+log "✓ File ownership set"
+
+log "Creating SSL certificate..."
+/app/fetch.sh cert koji-hub.koji.box /etc/pki/tls/certs/localhost.crt
+/app/fetch.sh key koji-hub.koji.box /etc/pki/tls/private/localhost.key
+log "✓ SSL certificate created"
+
+/sbin/httpd -DFOREGROUND &
+export HUB_PID=$!
+log "✓ Koji hub service started (pid: $HUB_PID)"
+
+# Start the Koji hub service
+log "Starting startup.sh"
+su koji -c /usr/local/bin/startup.sh
+
+wait $HUB_PID
+log "Koji hub service stopped, exiting"
+
+
+# The end.

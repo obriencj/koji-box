@@ -62,18 +62,13 @@ build-fast: pull-koji ## Build all container images (cached)
 up: ## Start all services
 	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up -d
-	@echo -e "$(YELLOW)Waiting for services to be ready...$(NC)"
-	@sleep 10
 	@echo -e "$(GREEN)Koji environment started$(NC)"
-	@echo -e "$(BLUE)Services available at:$(NC)"
-	@echo -e "  Koji Hub:     http://localhost:8080"
-	@echo -e "  Koji Web:     http://localhost:8081"
-	@echo -e "  Storage:      http://localhost:8082"
-
-launch:
+	
+launch: ## Start all services in the foreground
+	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up --build
 
-relaunch: down launch ## Restart all services
+relaunch: down launch ## Restart all services in the foreground
 
 down: ## Stop all services
 	@echo -e "$(BLUE)Stopping Koji environment...$(NC)"
@@ -102,6 +97,9 @@ logs-kdc: ## Show logs for KDC
 
 logs-nginx: ## Show logs for Nginx
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) logs -f nginx
+
+logs-keytab-service: ## Show logs for Keytab Service
+	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) logs -f keytab-service
 
 status: ## Show status of all services
 	@echo -e "$(BLUE)Service Status:$(NC)"
@@ -226,3 +224,6 @@ restore: ## Restore from backup (requires BACKUP_DIR)
 	@echo -e "$(BLUE)Restoring from $(BACKUP_DIR)...$(NC)"
 	@tar -xzf $(BACKUP_DIR)/data.tar.gz
 	@echo -e "$(GREEN)Restore completed$(NC)"
+
+
+# The end.

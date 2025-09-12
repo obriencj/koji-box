@@ -1,0 +1,18 @@
+
+[libdefaults]
+default_realm = ${KRB5_REALM}
+dns_lookup_realm = false
+dns_lookup_kdc = false
+dns_canonicalize_hostname = fallback
+
+[realms]
+${KRB5_REALM} = {
+    kdc = ${KRB5_KDC}:88
+    admin_server = ${KRB5_KDC}:749
+}
+
+[domain_realm]
+.koji.box = ${KRB5_REALM}
+koji.box = ${KRB5_REALM}
+
+# The end.

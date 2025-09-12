@@ -1,0 +1,50 @@
+[hub]
+# Koji Hub Configuration
+
+# Database configuration
+DBName = ${POSTGRES_DB}
+DBUser = ${POSTGRES_USER}
+DBPass = ${POSTGRES_PASSWORD}
+DBHost = ${POSTGRES_HOST}
+DBPort = ${POSTGRES_PORT}
+
+# Server configuration
+ServerName = ${KOJI_HUB_HOST}.koji.box
+ServerAlias = ${KOJI_HUB_HOST}
+ServerAdmin = ${KOJI_HUB_ADMIN}
+DocumentRoot = /var/www/html
+
+# SSL configuration
+#SSLCertificateFile = /etc/koji-hub/koji-ca-crt.crt
+#SSLCertificateKeyFile = /etc/koji-hub/koji-ca-crt.crt
+
+# Koji configuration
+KojiDir = ${KOJI_TOP_DIR}
+KojiUser = ${KOJI_USER}
+KojiGroup = ${KOJI_GROUP}
+
+# Build configuration
+BuildTimeout = ${KOJI_BUILD_TIMEOUT}
+MaxBuilds = ${KOJI_MAX_BUILDS}
+
+# Storage configuration
+StoragePath = ${KOJI_TOP_DIR}
+StorageURL = ${KOJI_TOP_URL}
+
+# Logging
+LogLevel = INFO
+LogFile = /var/log/koji-hub/
+
+# Security
+# AllowedHosts = localhost,koji-hub,koji-web,koji-worker
+# AllowedIPs = 172.20.0.0/16,127.0.0.1
+
+# Authentication
+LoginCreatesUser = On
+
+# Build system
+BuildRootTimeout = ${KOJI_BUILD_ROOT_TIMEOUT}
+MaxBuildsPerHost = ${KOJI_MAX_BUILDS_PER_HOST}
+
+
+# The end.

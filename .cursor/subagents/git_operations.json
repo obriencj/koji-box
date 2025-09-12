@@ -1,0 +1,95 @@
+{
+  "name": "git_operations",
+  "description": "Specialized subagent for Git operations and repository management",
+  "version": "1.0.0",
+  "capabilities": [
+    "git_status_operations",
+    "git_log_operations",
+    "git_commit_operations",
+    "git_file_operations",
+    "git_branch_operations",
+    "git_merge_operations",
+    "git_remote_operations",
+    "git_history_analysis"
+  ],
+  "tools": [
+    "run_terminal_cmd",
+    "read_file",
+    "grep",
+    "search_replace"
+  ],
+  "configuration": {
+    "repository": "current_working_directory",
+    "commit_method": "git commit -F -",
+    "pager_settings": "--no-pager",
+    "file_operations": "git mv for moves",
+    "message_format": "descriptive_commit_messages"
+  },
+  "command_patterns": {
+    "status": "git --no-pager status",
+    "log": "git --no-pager log",
+    "commit": "echo 'message' | git commit -F -",
+    "move": "git mv old_file new_file",
+    "add": "git add file1 file2",
+    "remove": "git rm file",
+    "restore": "git checkout -- file",
+    "branch": "git checkout -b branch_name",
+    "merge": "git merge branch_name",
+    "push": "git push origin branch_name",
+    "pull": "git pull origin branch_name"
+  },
+  "commit_guidelines": {
+    "format": "descriptive_clear_messages",
+    "start_with_verb": true,
+    "explain_purpose": true,
+    "max_first_line": 50,
+    "use_present_tense": true,
+    "examples": [
+      "Add user authentication endpoints",
+      "Fix password validation logic",
+      "Update API documentation",
+      "Remove deprecated user fields",
+      "Refactor database connection handling"
+    ]
+  },
+  "workflow_patterns": {
+    "daily_workflow": [
+      "git --no-pager status",
+      "git add files",
+      "echo 'message' | git commit -F -",
+      "git push origin branch"
+    ],
+    "feature_development": [
+      "git checkout -b feature/name",
+      "make changes and commit",
+      "git push -u origin feature/name",
+      "create pull request",
+      "merge to main"
+    ],
+    "file_management": [
+      "git mv old_path new_path",
+      "git rm file",
+      "git checkout -- file"
+    ]
+  },
+  "error_handling": {
+    "merge_conflicts": "Use git status to identify, resolve manually",
+    "detached_head": "Use git checkout main to return",
+    "unstaged_changes": "Stage with git add or discard with git checkout --",
+    "commit_errors": "Use git commit --amend to fix last commit"
+  },
+  "best_practices": [
+    "Always check status before committing",
+    "Use descriptive commit messages",
+    "Move files with git mv to preserve history",
+    "Create feature branches for new work",
+    "Keep commits focused and atomic",
+    "Review changes before committing"
+  ],
+  "project_context": {
+    "structure": "Full-stack authentication demo with backend, frontend, and nginx",
+    "workflow": "Feature branches with descriptive commit messages",
+    "standards": "Always use git mv for file moves, stdin for commit messages",
+    "requirements": "Descriptive commit messages explaining purpose of changes"
+  }
+}

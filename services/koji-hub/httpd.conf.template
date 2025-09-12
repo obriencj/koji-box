@@ -1,0 +1,74 @@
+ServerName koji-hub.koji.box
+
+# Global WSGI application configuration
+<Directory "/usr/share/koji-hub">
+    Options ExecCGI
+    SetHandler wsgi-script
+
+    WSGIApplicationGroup %{GLOBAL}
+    # ^ works around a hub issue with OpenSSL
+    # see: https://cryptography.io/en/latest/faq/#starting-cryptography-using-mod-wsgi-produces-an-internalerror-during-a-call-in-register-osrandom-engine
+
+    WSGIScriptReloading Off
+    # ^ reloading breaks hub "firstcall" check
+    # see: https://pagure.io/koji/issue/875
+
+    <IfVersion < 2.4>
+        Order allow,deny
+        Allow from all
+    </IfVersion>
+
+    <IfVersion >= 2.4>
+        Require all granted
+    </IfVersion>
+</Directory>
+
+<VirtualHost *:80>
+    ServerName koji-hub.koji.box
+    Alias /kojihub /usr/share/koji-hub/kojiapp.py
+</VirtualHost>
+
+<VirtualHost koji-hub.koji.box:443>
+    ServerName koji-hub.koji.box
+    Alias /kojihub /usr/share/koji-hub/kojiapp.py
+
+    # SSL Certificate configuration
+    SSLEngine on
+    SSLCertificateFile /etc/pki/tls/certs/localhost.crt
+    SSLCertificateKeyFile /etc/pki/tls/private/localhost.key
+
+    # enable authentication via GSSAPI
+    <Location /kojihub/ssllogin>
+        AuthType GSSAPI
+        AuthName "GSSAPI Single Sign On Login"
+
+        GssapiBasicAuth on
+        GssapiCredStore keytab:/etc/koji-hub/koji-hub.keytab
+        GssapiUseSessions On
+        Require valid-user
+    </Location>
+</VirtualHost>
+
+<VirtualHost koji.box:443>
+    ServerName koji.box
+    Alias /kojihub /usr/share/koji-hub/kojiapp.py
+
+    # SSL Certificate configuration
+    SSLEngine on
+    SSLCertificateFile /etc/pki/tls/certs/localhost.crt
+    SSLCertificateKeyFile /etc/pki/tls/private/localhost.key
+
+    # enable authentication via GSSAPI
+    <Location /kojihub/ssllogin>
+        AuthType GSSAPI
+        AuthName "GSSAPI Single Sign On Login"
+
+        GssapiBasicAuth on
+        GssapiCredStore keytab:/etc/koji-hub/nginx.keytab
+        GssapiUseSessions On
+        Require valid-user
+    </Location>
+</VirtualHost>
+
+
+# The end.

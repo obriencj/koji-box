@@ -1,22 +1,55 @@
 version: '3.8'
 
+# Common environment variable definitions
+x-common-database: &common-database
+  POSTGRES_HOST: postgres.koji.box
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: ${POSTGRES_DB:-koji}
+  POSTGRES_USER: ${POSTGRES_USER:-koji}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-koji_password}
+
+x-common-kerberos: &common-kerberos
+  KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
+  KRB5_KDC: kdc.koji.box
+  KRB5_ADMIN_SERVER: kdc.koji.box
+
+x-common-koji: &common-koji
+  KOJI_HUB_URL: ${KOJI_HUB_URL:-http://koji.box/kojihub}
+  KOJI_WEB_URL: ${KOJI_WEB_URL:-http://koji.box/}
+  KOJI_TOP_URL: ${KOJI_TOP_URL:-http://koji.box/kojifiles}
+  KOJI_TOP_DIR: ${KOJI_TOP_DIR:-/mnt/koji}
+  KOJI_SRC_DIR: ${KOJI_SRC_DIR:-/mnt/koji-src}
+
+x-common-keytab-service: &common-keytab-service
+  KEYTAB_SERVICE_URL: ${KEYTAB_SERVICE_URL:-http://keytabs.koji.box:5000}
+
+x-common-kadmin: &common-kadmin
+  KADMIN_PRINC: ${KADMIN_PRINC:-admin/admin}
+  KADMIN_PASS: ${KADMIN_PASS:-admin_password}
+
+x-common-koji-admin: &common-koji-admin
+  KOJI_ADMIN_NAME: ${KOJI_ADMIN_NAME:-hub-admin}
+  KOJI_ADMIN_PRINC: ${KOJI_ADMIN_PRINC:-hub-admin@KOJI.BOX}
+
+x-common-koji-hub: &common-koji-hub
+  KOJI_HUB_PRINC: ${KOJI_HUB_PRINC:-HTTP/koji-hub.koji.box@KOJI.BOX}
+  KOJI_NGINX_PRINC: ${KOJI_NGINX_PRINC:-HTTP/koji.box@KOJI.BOX}
+
+
 services:
   postgres:
-    build:
-      context: ./containers/postgres
-      dockerfile: Dockerfile
+    image: postgres:15-alpine
     container_name: koji-boxed-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-koji}
-      POSTGRES_USER: ${POSTGRES_USER:-koji}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-koji_password}
+      <<: [*common-database,
+           *common-koji-admin]
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - postgres_data:/var/lib/postgresql/data:Z
-      - ./data/postgres:/var/lib/postgresql/backup:Z
-      - ./scripts/init-koji.sql:/docker-entrypoint-initdb.d/init-koji.sql:Z
-    #ports:
-    #  - "5432:5432"
+      - ./data/postgres:/var/lib/postgresql/data:Z
+      - ./services/postgres/init.d:/docker-entrypoint-initdb.d:Z
+      - ./koji-src/:/mnt/koji-src:Z
+    expose:
+      - "5432"
     networks:
       koji-network:
         aliases:
@@ -35,19 +68,16 @@ services:
 
   kdc:
     build:
-      context: ./containers/kdc
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/kdc/Dockerfile
     container_name: koji-boxed-kdc
     environment:
-      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
-      KRB5_KDC: kdc.koji.box
-      KRB5_ADMIN_SERVER: kdc.koji.box
+      <<: [*common-kerberos,
+           *common-kadmin]
     volumes:
       - kdc_data:/var/lib/krb5kdc:Z
-      - ./configs/kdc/conf:/etc/krb5kdc:Z
-      - ./configs/kdc/kdc-init.d:/var/lib/krb5kdc/kdc-init.d:Z
+      - ./services/kdc/init.d:/var/lib/krb5kdc/kdc-init.d:Z
       - ./data/logs/kdc:/var/log/krb5kdc:Z
-      - ./data/keytabs:/mnt/keytabs:Z
     expose:
       - "88"
       - "749"
@@ -58,7 +88,35 @@ services:
           - kdc.koji.box
     healthcheck:
       test: ["CMD-SHELL", "/bin/health-check.sh"]
-      interval: 30s
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
+
+  keytab-service:
+    build:
+      context: .
+      dockerfile: services/keytab-service/Dockerfile
+    container_name: koji-boxed-keytab-service
+    depends_on:
+      kdc:
+        condition: service_healthy
+    environment:
+      <<: [*common-kerberos,
+           *common-koji,
+           *common-kadmin]
+    networks:
+      koji-network:
+        aliases:
+          - keytabs.koji.box
+    healthcheck:
+      test: ["CMD-SHELL", "/app/health-check.sh"]
+      interval: 10s
       timeout: 10s
       retries: 3
     deploy:
@@ -70,43 +128,39 @@ services:
 
   koji-hub:
     build:
-      context: ./containers/koji-hub
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/koji-hub/Dockerfile
     container_name: koji-boxed-koji-hub
+    hostname: koji-hub.koji.box
     depends_on:
       postgres:
         condition: service_healthy
-      kdc:
+      keytab-service:
         condition: service_healthy
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-koji}
-      POSTGRES_USER: ${POSTGRES_USER:-koji}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-koji_password}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      KOJI_HUB_HOST: ${KOJI_HUB_HOST:-koji-hub}
-      KOJI_HUB_PORT: ${KOJI_HUB_PORT:-8080}
-      KOJI_STORAGE_HOST: koji-storage
-      KOJI_STORAGE_PORT: 8080
-      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
-      KRB5_KDC: kdc.koji.box
-      KRB5_ADMIN_SERVER: kdc.koji.box
+      <<: [*common-database,
+           *common-koji,
+           *common-kerberos,
+           *common-koji-admin,
+           *common-koji-hub,
+           *common-keytab-service]
+      KOJI_HUB_URL: https://koji-hub.koji.box/kojihub  # override to bypass nginx
     volumes:
-      - koji_storage:/mnt/koji:ro
-      - ./configs/koji-hub:/etc/koji-hub:Z
-      - ./configs/kdc:/etc/krb5kdc:Z
+      - koji_storage:/mnt/koji:Z
+      - ./services/koji-hub/init.d:/var/lib/koji-hub/hub-init.d:Z
       - ./data/logs/hub:/var/log/koji-hub:Z
-    #ports:
-    #  - "8080:8080"
+    expose:
+      - "80"
+      - "443"
     networks:
       koji-network:
         aliases:
           - koji-hub.koji.box
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/status || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
+      test: ["CMD-SHELL", "koji version || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     deploy:
       resources:
         limits:
@@ -116,29 +170,21 @@ services:
 
   koji-worker:
     build:
-      context: ./containers/koji-worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/koji-worker/Dockerfile
     container_name: koji-boxed-koji-worker
+    hostname: koji-worker-1.koji.box
     depends_on:
       koji-hub:
         condition: service_healthy
-      koji-storage:
-        condition: service_healthy
-      kdc:
+      keytab-service:
         condition: service_healthy
     environment:
-      KOJI_HUB_HOST: ${KOJI_HUB_HOST:-koji-hub}
-      KOJI_HUB_PORT: ${KOJI_HUB_PORT:-8080}
-      KOJI_STORAGE_HOST: koji-storage
-      KOJI_STORAGE_PORT: 8080
-      WORKER_NAME: koji-worker-1
-      WORKER_CAPACITY: 2
-      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
-      KRB5_KDC: kdc.koji.box
-      KRB5_ADMIN_SERVER: kdc.koji.box
+      <<: [*common-keytab-service,
+           *common-koji,
+           *common-kerberos]
     volumes:
       - koji_storage:/mnt/koji
-      - ./configs/kdc:/etc/krb5kdc:Z
       - ./data/logs/worker:/var/log/koji-worker
     networks:
       koji-network:
@@ -158,28 +204,22 @@ services:
 
   koji-web:
     build:
-      context: ./containers/koji-web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/koji-web/Dockerfile
     container_name: koji-boxed-koji-web
     depends_on:
       koji-hub:
         condition: service_healthy
-      kdc:
+      keytab-service:
         condition: service_healthy
     environment:
-      KOJI_HUB_HOST: ${KOJI_HUB_HOST:-koji-hub}
-      KOJI_HUB_PORT: ${KOJI_HUB_PORT:-8080}
-      KOJI_WEB_HOST: ${KOJI_WEB_HOST:-koji-web}
-      KOJI_WEB_PORT: ${KOJI_WEB_PORT:-8080}
-      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
-      KRB5_KDC: kdc.koji.box
-      KRB5_ADMIN_SERVER: kdc.koji.box
+      <<: [*common-koji,
+           *common-kerberos,
+           *common-keytab-service]
     volumes:
-      - ./configs/koji-web:/etc/koji-web:Z
-      - ./configs/kdc:/etc/krb5kdc:Z
-      - ./data/logs/web:/var/log/koji-web:Z
-    #ports:
-    #  - "8081:8080"
+      - ./services/koji-web:/etc/koji-web:Z
+    expose:
+      - "8080"
     networks:
       koji-network:
         aliases:
@@ -198,55 +238,79 @@ services:
 
   koji-client:
     build:
-      context: ./containers/koji-client
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/koji-client/Dockerfile
     container_name: koji-boxed-koji-client
+    depends_on:
+      keytab-service:
+        condition: service_healthy
+      nginx:
+        condition: service_healthy
+      koji-hub:
+        condition: service_healthy
     environment:
-      KOJI_HUB_HOST: ${KOJI_HUB_HOST:-koji-hub}
-      KOJI_HUB_PORT: ${KOJI_HUB_PORT:-8080}
-      KRB5_REALM: ${KRB5_REALM:-KOJI.BOX}
-      KRB5_KDC: kdc.koji.box
-      KRB5_ADMIN_SERVER: kdc.koji.box
+      <<: [*common-koji,
+           *common-kerberos,
+           *common-keytab-service]
+      CLIENT_PRINCIPAL: ${CLIENT_PRINCIPAL:-friend@KOJI.BOX}
     volumes:
-      - ./configs/koji-client:/etc/koji:Z
-      - ./configs/kdc:/etc/krb5kdc:Z
       - koji_storage:/mnt/koji:ro
-      - ./data/logs/client:/var/log/koji-client:Z
+      - ./services/koji-client/init.d:/var/lib/koji-client/client-init.d:Z
     networks:
       koji-network:
         aliases:
           - koji-client.koji.box
-    profiles:
-      - tools
     deploy:
       resources:
         limits:
           memory: 256m
         reservations:
           memory: 128m
+    profiles:
+      - "shell"
+
+  test-runner:
+    extends:
+      service: koji-client
+    environment:
+      <<: [*common-koji,
+           *common-kerberos,
+           *common-keytab-service]
+      CLIENT_PRINCIPAL: ${CLIENT_PRINCIPAL:-test-user@KOJI.BOX}
+    volumes:
+      - koji_storage:/mnt/koji:ro
+      - ./services/test-runner/init.d:/var/lib/koji-client/client-init.d:Z
+    networks:
+      koji-network:
+        aliases:
+          - test-runner-client.koji.box
+    profiles:
+      - "test"
 
   nginx:
-    build:
-      context: ./containers/nginx
-      dockerfile: Dockerfile
+    image: nginx:alpine
     container_name: koji-boxed-nginx
     depends_on:
-      koji-web:
-        condition: service_healthy
+      # koji-web:
+      #  condition: service_healthy
       koji-hub:
         condition: service_healthy
     volumes:
-      - ./configs/nginx:/etc/nginx:Z
       - koji_storage:/mnt/koji:ro
+      - ./services/nginx:/etc/nginx:Z
       - ./data/logs/nginx:/var/log/nginx:Z
     ports:
       - "8080:80"
+      - "8443:443"
+    expose:
+      - "80"
+      - "443"
     networks:
       koji-network:
         aliases:
           - koji.box
     healthcheck:
-      test: ["CMD-SHELL", "/usr/local/bin/health-check.sh"]
+      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -271,3 +335,6 @@ volumes:
     driver: local
   kdc_data:
     driver: local
+
+
+# The end.

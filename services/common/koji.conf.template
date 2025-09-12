@@ -1,0 +1,11 @@
+
+[koji]
+server = ${KOJI_HUB_URL}
+weburl = ${KOJI_WEB_URL}
+topurl = ${KOJI_TOP_URL}
+topdir = ${KOJI_TOP_DIR}
+
+authtype = kerberos
+no_ssl_verify = true
+
+# The end.
