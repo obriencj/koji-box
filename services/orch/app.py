@@ -9,6 +9,7 @@ import logging
 import subprocess
 import threading
 import time
+from datetime import datetime
 from flask import Flask, jsonify, redirect
 from app import create_app
 
@@ -24,6 +25,7 @@ app = create_app()
 
 # Add configuration
 app.config['KRB5_REALM'] = os.getenv('KRB5_REALM', 'KOJI.BOX')
+app.config['TIMESTAMP'] = datetime.utcnow().isoformat()
 
 def background_cleanup():
     """Background task to clean up dead container checkouts"""

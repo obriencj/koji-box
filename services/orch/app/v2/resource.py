@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
 V2 Resource API - UUID-based resource management
-Implements secure resource checkout system
+Implements secure resource checkout system with comprehensive validation
 """
 
 import logging
 from flask import Blueprint, request, jsonify, send_file, current_app
+
+from ..common.validators import ResourceValidator, SecurityValidator, RequestValidator
+from ..common.error_handlers import ErrorHandler, ErrorResponse
 
 logger = logging.getLogger(__name__)
 resource_bp = Blueprint('resource', __name__)
@@ -14,10 +17,28 @@ resource_bp = Blueprint('resource', __name__)
 def checkout_resource(uuid):
     """Checkout a resource by UUID"""
     try:
+        # Validate request method
+        valid, error_msg = RequestValidator.validate_request_method(request, ['POST'])
+        if not valid:
+            return ErrorHandler.handle_validation_error('method', request.method, error_msg)
+        
+        # Validate UUID format
+        valid, error_msg = ResourceValidator.validate_uuid(uuid)
+        if not valid:
+            return ErrorHandler.handle_validation_error('uuid', uuid, error_msg)
+        
+        # Validate request headers
+        valid, error_msg = RequestValidator.validate_request_headers(request)
+        if not valid:
+            return ErrorHandler.handle_validation_error('headers', 'remote_addr', error_msg)
+        
         # Get client IP for container identification
         client_ip = request.remote_addr
-        if not client_ip:
-            return jsonify({'error': 'Unable to determine client IP'}), 400
+        
+        # Validate IP address format
+        valid, error_msg = ResourceValidator.validate_ip_address(client_ip)
+        if not valid:
+            return ErrorHandler.handle_validation_error('client_ip', client_ip, error_msg)
         
         # Get checkout manager
         checkout_manager = current_app.checkout_manager
@@ -26,12 +47,19 @@ def checkout_resource(uuid):
         success, resource_path, error_message = checkout_manager.checkout_resource(uuid, client_ip)
         
         if not success:
-            return jsonify({'error': error_message}), 400 if 'not found' in error_message.lower() else 500
+            if 'not found' in error_message.lower():
+                return ErrorHandler.handle_resource_not_found('resource', uuid)
+            elif 'already checked out' in error_message.lower():
+                return ErrorResponse.resource_already_checked_out(uuid, 'unknown')
+            elif 'unable to identify' in error_message.lower():
+                return ErrorHandler.handle_container_error('identification', error_message)
+            else:
+                return ErrorHandler.handle_internal_error(f"Checkout failed: {error_message}")
         
         # Get resource mapping for filename
         mapping = current_app.db_manager.get_resource_mapping(uuid)
         if not mapping:
-            return jsonify({'error': 'Resource mapping not found'}), 500
+            return ErrorHandler.handle_resource_not_found('resource_mapping', uuid)
         
         # Determine filename
         filename = _get_resource_filename(mapping, resource_path)
@@ -44,17 +72,35 @@ def checkout_resource(uuid):
         )
         
     except Exception as e:
-        logger.error(f"Error in checkout_resource for {uuid}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"Unexpected error in checkout_resource for {uuid}: {e}")
+        return ErrorHandler.handle_internal_error("Unexpected error during resource checkout", e)
 
 @resource_bp.route('/<uuid>', methods=['DELETE'])
 def release_resource(uuid):
     """Release a resource by UUID"""
     try:
+        # Validate request method
+        valid, error_msg = RequestValidator.validate_request_method(request, ['DELETE'])
+        if not valid:
+            return ErrorHandler.handle_validation_error('method', request.method, error_msg)
+        
+        # Validate UUID format
+        valid, error_msg = ResourceValidator.validate_uuid(uuid)
+        if not valid:
+            return ErrorHandler.handle_validation_error('uuid', uuid, error_msg)
+        
+        # Validate request headers
+        valid, error_msg = RequestValidator.validate_request_headers(request)
+        if not valid:
+            return ErrorHandler.handle_validation_error('headers', 'remote_addr', error_msg)
+        
         # Get client IP for container identification
         client_ip = request.remote_addr
-        if not client_ip:
-            return jsonify({'error': 'Unable to determine client IP'}), 400
+        
+        # Validate IP address format
+        valid, error_msg = ResourceValidator.validate_ip_address(client_ip)
+        if not valid:
+            return ErrorHandler.handle_validation_error('client_ip', client_ip, error_msg)
         
         # Get checkout manager
         checkout_manager = current_app.checkout_manager
@@ -63,49 +109,90 @@ def release_resource(uuid):
         success, error_message = checkout_manager.release_resource(uuid, client_ip)
         
         if not success:
-            return jsonify({'error': error_message}), 400
+            if 'unable to identify' in error_message.lower():
+                return ErrorHandler.handle_container_error('identification', error_message)
+            elif 'not checked out' in error_message.lower():
+                return ErrorHandler.handle_validation_error('resource', uuid, "Resource not checked out to this container")
+            else:
+                return ErrorHandler.handle_internal_error(f"Release failed: {error_message}")
         
-        return jsonify({'message': 'Resource released successfully'})
+        return jsonify({
+            'message': 'Resource released successfully',
+            'uuid': uuid,
+            'released_at': current_app.config.get('TIMESTAMP', None)
+        })
         
     except Exception as e:
-        logger.error(f"Error in release_resource for {uuid}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"Unexpected error in release_resource for {uuid}: {e}")
+        return ErrorHandler.handle_internal_error("Unexpected error during resource release", e)
 
 @resource_bp.route('/<uuid>/status', methods=['GET'])
 def get_resource_status(uuid):
     """Get status of a resource by UUID"""
     try:
+        # Validate request method
+        valid, error_msg = RequestValidator.validate_request_method(request, ['GET'])
+        if not valid:
+            return ErrorHandler.handle_validation_error('method', request.method, error_msg)
+        
+        # Validate UUID format
+        valid, error_msg = ResourceValidator.validate_uuid(uuid)
+        if not valid:
+            return ErrorHandler.handle_validation_error('uuid', uuid, error_msg)
+        
         checkout_manager = current_app.checkout_manager
         status = checkout_manager.get_resource_status(uuid)
         
         if not status:
-            return jsonify({'error': 'Resource not found'}), 404
+            return ErrorHandler.handle_resource_not_found('resource', uuid)
         
-        return jsonify(status)
+        return jsonify({
+            'status': status,
+            'requested_at': current_app.config.get('TIMESTAMP', None)
+        })
         
     except Exception as e:
-        logger.error(f"Error in get_resource_status for {uuid}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"Unexpected error in get_resource_status for {uuid}: {e}")
+        return ErrorHandler.handle_internal_error("Unexpected error during status retrieval", e)
 
 @resource_bp.route('/<uuid>/validate', methods=['GET'])
 def validate_resource_access(uuid):
     """Validate if current client can access a resource"""
     try:
+        # Validate request method
+        valid, error_msg = RequestValidator.validate_request_method(request, ['GET'])
+        if not valid:
+            return ErrorHandler.handle_validation_error('method', request.method, error_msg)
+        
+        # Validate UUID format
+        valid, error_msg = ResourceValidator.validate_uuid(uuid)
+        if not valid:
+            return ErrorHandler.handle_validation_error('uuid', uuid, error_msg)
+        
+        # Validate request headers
+        valid, error_msg = RequestValidator.validate_request_headers(request)
+        if not valid:
+            return ErrorHandler.handle_validation_error('headers', 'remote_addr', error_msg)
+        
         client_ip = request.remote_addr
-        if not client_ip:
-            return jsonify({'error': 'Unable to determine client IP'}), 400
+        
+        # Validate IP address format
+        valid, error_msg = ResourceValidator.validate_ip_address(client_ip)
+        if not valid:
+            return ErrorHandler.handle_validation_error('client_ip', client_ip, error_msg)
         
         checkout_manager = current_app.checkout_manager
         can_access, error_message = checkout_manager.validate_resource_access(uuid, client_ip)
         
         return jsonify({
             'can_access': can_access,
-            'error': error_message if not can_access else None
+            'error': error_message if not can_access else None,
+            'validated_at': current_app.config.get('TIMESTAMP', None)
         })
         
     except Exception as e:
-        logger.error(f"Error in validate_resource_access for {uuid}: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"Unexpected error in validate_resource_access for {uuid}: {e}")
+        return ErrorHandler.handle_internal_error("Unexpected error during access validation", e)
 
 def _get_resource_filename(mapping: dict, resource_path) -> str:
     """Get appropriate filename for resource based on type and path"""
