@@ -218,21 +218,283 @@ Multiple methods for container identification:
 - Resource creation time
 - Database query performance
 
-### Questions & Considerations
+### Design Decisions & Implementation Details
 
-1. **Resource Mapping Management**: How will you maintain the UUID-to-resource mapping? Static file, database, or dynamic generation?
+1. **Resource Mapping Management**:
+   - **Approach**: Environment variable-based mapping in docker-compose.yml
+   - **Implementation**: Use `envsubst` to generate resource mapping JSON from environment variables
+   - **Example**: `KOJI_HUB_KEYTAB=some_uuid_here` → maps to `KOJI_HUB_PRINC` principal
+   - **Database Integration**: Orch reads all relevant env vars at startup and populates database
 
-2. **Container Identification**: Preferred method for container identification? Request headers, Docker socket inspection, or hybrid approach?
+2. **Container Identification**:
+   - **Method**: Requestor IP address → Docker socket API lookup
+   - **Process**: Extract client IP from request, query Docker API for container with matching IP
+   - **Fallback**: Container name parsing if IP lookup fails
 
-3. **Resource Cleanup**: Should checked-out resources be automatically cleaned up when containers die, or require explicit release?
+3. **Resource Cleanup**:
+   - **Approach**: Explicit release with ownership validation
+   - **Logic**: Check if requestor owns resource OR if previous owner is dead
+   - **Security**: Deny release if different living container owns resource
 
-4. **Scale Index Detection**: For scaled resources, how should the orch determine the scale index? From container name, environment variables, or Docker metadata?
+4. **Scale Index Detection**:
+   - **Method**: IP address → Docker socket API → extract scale number from container metadata
+   - **Process**: Same as container identification, then parse scale index from container name/labels
 
-5. **Backward Compatibility**: Maintain existing v1 API during transition, or make a clean break?
+5. **Backward Compatibility**:
+   - **Decision**: Maintain v1 API during transition
+   - **Implementation**: Refactor app.py into app/ package with separate blueprints
+   - **Structure**: `app/v1/` and `app/v2/` blueprints for clean separation
 
-6. **Resource Lifecycle**: Should resources be created on-demand or pre-created and just checked out?
+6. **Resource Lifecycle**:
+   - **Approach**: Lazy creation (on-demand)
+   - **Benefit**: Reduces startup time and resource usage
+   - **Implementation**: Create resources only when first checked out
 
-7. **Security Validation**: Any additional validation that containers can only request resources they're authorized for?
+7. **Security Validation**:
+   - **Authorization**: UUID possession = authorization
+   - **Multi-UUID Support**: Same resource can have multiple UUIDs for different containers
+   - **Example**: `hub-admin` keytab could have separate UUIDs for hub and web containers
+
+### Additional Implementation Considerations
+
+#### Environment Variable Management
+**Docker Compose Integration:**
+```yaml
+# Example environment variable distribution
+services:
+  koji-hub:
+    environment:
+      KOJI_HUB_KEYTAB: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      KOJI_HUB_PRINC: "HTTP/koji-hub.koji.box@KOJI.BOX"
+      KOJI_NGINX_KEYTAB: "b2c3d4e5-f6g7-8901-bcde-f23456789012"
+      KOJI_NGINX_PRINC: "HTTP/koji.box@KOJI.BOX"
+
+  koji-web:
+    environment:
+      KOJI_WEB_KEYTAB: "c3d4e5f6-g7h8-9012-cdef-345678901234"
+      KOJI_WEB_PRINC: "HTTP/koji-web.koji.box@KOJI.BOX"
+```
+
+**Resource Mapping Template:**
+```json
+{
+  "${KOJI_HUB_KEYTAB}": {
+    "type": "principal",
+    "resource": "${KOJI_HUB_PRINC}",
+    "description": "Koji hub principal keytab"
+  },
+  "${KOJI_NGINX_KEYTAB}": {
+    "type": "principal",
+    "resource": "${KOJI_NGINX_PRINC}",
+    "description": "Nginx principal keytab"
+  },
+  "${KOJI_WORKER_KEYTAB}": {
+    "type": "worker",
+    "resource": "koji-worker-${SCALE_INDEX}",
+    "description": "Koji worker keytab (scaled)"
+  }
+}
+```
+
+#### Container Identification Challenges
+**IP Address Resolution:**
+- **Challenge**: Containers may have multiple IPs (bridge, host, etc.)
+- **Solution**: Check all container IPs against requestor IP
+- **Fallback**: Use container name patterns if IP matching fails
+
+**Docker Socket Access:**
+- **Mount**: `/var/run/docker.sock:/var/run/docker.sock:ro`
+- **API**: Use Docker Python SDK for container inspection
+- **Performance**: Cache container metadata to reduce API calls
+
+#### Multi-UUID Resource Management
+**Database Schema Updates:**
+```sql
+-- Track multiple UUIDs for same resource
+CREATE TABLE resource_mappings (
+    uuid TEXT PRIMARY KEY,
+    resource_type TEXT NOT NULL,
+    actual_resource_name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Track which UUIDs map to same underlying resource
+CREATE TABLE resource_aliases (
+    uuid TEXT PRIMARY KEY,
+    canonical_uuid TEXT NOT NULL,
+    FOREIGN KEY (canonical_uuid) REFERENCES resource_mappings(uuid)
+);
+```
+
+**Resource Sharing Logic:**
+- Multiple containers can have different UUIDs for same resource
+- Only one container can checkout each UUID at a time
+- Resource creation happens only once per actual resource name
+- File sharing: Multiple UUIDs can serve the same physical file
+
+#### Scale Index Detection Implementation
+**Container Metadata Parsing:**
+```python
+def get_scale_index(container_id):
+    """Extract scale index from container metadata"""
+    container = docker_client.containers.get(container_id)
+
+    # Method 1: Parse container name (e.g., koji-worker-3)
+    if match := re.search(r'koji-worker-(\d+)', container.name):
+        return int(match.group(1))
+
+    # Method 2: Check labels
+    if 'scale_index' in container.labels:
+        return int(container.labels['scale_index'])
+
+    # Method 3: Environment variable
+    if 'SCALE_INDEX' in container.attrs['Config']['Env']:
+        return int(container.attrs['Config']['Env']['SCALE_INDEX'])
+
+    return None
+```
+
+#### Application Structure Refactoring
+**New Package Structure:**
+```
+services/orch/
+├── app/
+│   ├── __init__.py
+│   ├── v1/
+│   │   ├── __init__.py
+│   │   ├── principal.py
+│   │   ├── worker.py
+│   │   └── cert.py
+│   ├── v2/
+│   │   ├── __init__.py
+│   │   ├── resource.py
+│   │   └── status.py
+│   └── common/
+│       ├── __init__.py
+│       ├── container_client.py
+│       ├── resource_manager.py
+│       └── database.py
+├── templates/
+│   └── resource_mapping.json.template
+├── requirements.txt
+└── Dockerfile
+```
+
+#### Potential Issues & Mitigations
+
+**Issue 1: IP Address Changes**
+- **Problem**: Container IPs may change during restarts
+- **Mitigation**: Use container name + network inspection for more reliable identification
+
+**Issue 2: Docker Socket Security**
+- **Problem**: Read-only access may not be sufficient for all operations
+- **Mitigation**: Use Docker API with minimal required permissions
+
+**Issue 3: Resource File Conflicts**
+- **Problem**: Multiple UUIDs serving same file may cause permission issues
+- **Mitigation**: Use symlinks or copy-on-write for shared resources
+
+**Issue 4: Environment Variable Complexity**
+- **Problem**: Many environment variables to manage
+- **Mitigation**: Use structured naming conventions and validation
+
+**Issue 5: Scale Index Detection Reliability**
+- **Problem**: Scale index detection may fail in some scenarios
+- **Mitigation**: Multiple fallback methods and clear error messages
+
+### Critical Concerns & Recommendations
+
+#### 1. IP Address-Based Container Identification
+**Concern**: Using IP addresses for container identification is inherently fragile
+- Container IPs can change during restarts
+- Multiple containers may share IPs in some network configurations
+- Docker networking can be complex with overlays, bridges, etc.
+
+**Recommendation**:
+- Primary: Use container name + network inspection
+- Fallback: IP address matching
+- Add container labels for explicit identification
+
+#### 2. Environment Variable Management Complexity
+**Concern**: Managing UUIDs via environment variables could become unwieldy
+- Many environment variables to track
+- Risk of UUID conflicts or typos
+- Difficult to validate all mappings
+
+**Recommendation**:
+- Use structured naming: `{SERVICE}_{RESOURCE_TYPE}_{UUID}`
+- Add validation script to check for conflicts
+- Consider using a separate mapping service
+
+#### 3. Multi-UUID Resource Sharing
+**Concern**: Multiple UUIDs for same resource creates complexity
+- Database schema becomes more complex
+- Resource cleanup logic needs to handle multiple owners
+- File sharing between UUIDs needs careful implementation
+
+**Recommendation**:
+- Implement canonical UUID concept
+- Use symlinks for shared files
+- Add resource dependency tracking
+
+#### 4. Docker Socket Security
+**Concern**: Mounting Docker socket creates security implications
+- Even read-only access can leak sensitive information
+- Container metadata may contain secrets
+- Network inspection requires elevated permissions
+
+**Recommendation**:
+- Use Docker API with minimal required permissions
+- Implement container metadata filtering
+- Consider using Docker labels for identification instead
+
+#### 5. Scale Index Detection Edge Cases
+**Concern**: Scale index detection may fail in various scenarios
+- Containers without predictable naming
+- Custom scaling solutions
+- Container restarts with different names
+
+**Recommendation**:
+- Make scale index explicit via environment variables
+- Use Docker labels for scale information
+- Provide clear error messages for detection failures
+
+### Alternative Approaches to Consider
+
+#### Option 1: Request Header-Based Identification
+Instead of IP-based identification, use request headers:
+```http
+X-Container-ID: abc123def456
+X-Scale-Index: 3
+X-Resource-UUID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+```
+
+**Pros**: More reliable, explicit, easier to debug
+**Cons**: Requires container modification, can be spoofed
+
+#### Option 2: Container Label-Based Mapping
+Use Docker labels to map containers to resources:
+```yaml
+services:
+  koji-worker-1:
+    labels:
+      - "orch.resource.uuid=a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      - "orch.resource.type=worker"
+      - "orch.scale.index=1"
+```
+
+**Pros**: No IP dependency, explicit mapping, Docker-native
+**Cons**: Requires container restart to change mappings
+
+#### Option 3: Hybrid Approach
+Combine multiple identification methods:
+1. Try request headers first
+2. Fall back to IP + Docker socket
+3. Use container labels as final fallback
+
+**Pros**: Most reliable, graceful degradation
+**Cons**: More complex implementation
 
 ### Implementation Timeline
 
