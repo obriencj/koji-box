@@ -8,6 +8,7 @@ from flask import Flask
 from .common.database import DatabaseManager
 from .common.resource_manager import ResourceManager
 from .common.container_client import ContainerClient
+from .common.checkout_manager import CheckoutManager
 
 def create_app():
     """Create and configure the Flask application"""
@@ -17,6 +18,7 @@ def create_app():
     app.db_manager = DatabaseManager()
     app.resource_manager = ResourceManager(app.db_manager)
     app.container_client = ContainerClient()
+    app.checkout_manager = CheckoutManager(app.db_manager, app.resource_manager, app.container_client)
     
     # Load resource mappings
     app.resource_manager.load_resource_mappings()

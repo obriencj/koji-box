@@ -19,65 +19,24 @@ def checkout_resource(uuid):
         if not client_ip:
             return jsonify({'error': 'Unable to determine client IP'}), 400
         
-        # Get container information
-        container_client = current_app.container_client
-        container_id, scale_index = container_client.identify_container_by_ip(client_ip)
-        
-        if not container_id:
-            return jsonify({'error': 'Unable to identify requesting container'}), 400
-        
-        # Check if container is running
-        if not container_client.is_container_running(container_id):
-            return jsonify({'error': 'Requesting container is not running'}), 400
-        
-        # Get resource mapping
-        db_manager = current_app.db_manager
-        mapping = db_manager.get_resource_mapping(uuid)
-        if not mapping:
-            return jsonify({'error': 'Resource not found'}), 404
-        
-        # Check if resource is already checked out
-        status = db_manager.get_resource_status(uuid)
-        if status and status['checked_out']:
-            # Check if previous owner is still alive
-            if container_client.is_container_running(status['container_id']):
-                return jsonify({'error': 'Resource already checked out'}), 409
-            else:
-                # Previous owner is dead, clean up
-                logger.info(f"Cleaning up dead container checkout for {uuid}")
-                db_manager.release_resource(uuid, status['container_id'])
+        # Get checkout manager
+        checkout_manager = current_app.checkout_manager
         
         # Checkout the resource
-        actual_resource_name = mapping['actual_resource_name']
-        if mapping['resource_type'] == 'worker' and scale_index is not None:
-            # For scaled resources, use the scale index
-            actual_resource_name = f"{mapping['actual_resource_name']}-{scale_index}"
+        success, resource_path, error_message = checkout_manager.checkout_resource(uuid, client_ip)
         
-        if not db_manager.checkout_resource(
-            uuid=uuid,
-            container_id=container_id,
-            container_ip=client_ip,
-            resource_type=mapping['resource_type'],
-            actual_resource_name=actual_resource_name,
-            scale_index=scale_index
-        ):
-            return jsonify({'error': 'Failed to checkout resource'}), 500
+        if not success:
+            return jsonify({'error': error_message}), 400 if 'not found' in error_message.lower() else 500
         
-        # Create/get the actual resource
-        resource_manager = current_app.resource_manager
-        resource_path = resource_manager.get_or_create_resource(
-            resource_type=mapping['resource_type'],
-            actual_resource_name=actual_resource_name,
-            scale_index=scale_index
-        )
+        # Get resource mapping for filename
+        mapping = current_app.db_manager.get_resource_mapping(uuid)
+        if not mapping:
+            return jsonify({'error': 'Resource mapping not found'}), 500
         
-        if not resource_path:
-            # Rollback checkout
-            db_manager.release_resource(uuid, container_id)
-            return jsonify({'error': 'Failed to create resource'}), 500
+        # Determine filename
+        filename = _get_resource_filename(mapping, resource_path)
         
         # Serve the resource file
-        filename = f"{actual_resource_name}.{_get_file_extension(mapping['resource_type'])}"
         return send_file(
             str(resource_path),
             as_attachment=True,
@@ -97,17 +56,14 @@ def release_resource(uuid):
         if not client_ip:
             return jsonify({'error': 'Unable to determine client IP'}), 400
         
-        # Get container information
-        container_client = current_app.container_client
-        container_id, _ = container_client.identify_container_by_ip(client_ip)
-        
-        if not container_id:
-            return jsonify({'error': 'Unable to identify requesting container'}), 400
+        # Get checkout manager
+        checkout_manager = current_app.checkout_manager
         
         # Release the resource
-        db_manager = current_app.db_manager
-        if not db_manager.release_resource(uuid, container_id):
-            return jsonify({'error': 'Resource not checked out to this container'}), 400
+        success, error_message = checkout_manager.release_resource(uuid, client_ip)
+        
+        if not success:
+            return jsonify({'error': error_message}), 400
         
         return jsonify({'message': 'Resource released successfully'})
         
@@ -115,15 +71,57 @@ def release_resource(uuid):
         logger.error(f"Error in release_resource for {uuid}: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-def _get_file_extension(resource_type: str) -> str:
-    """Get file extension based on resource type"""
+@resource_bp.route('/<uuid>/status', methods=['GET'])
+def get_resource_status(uuid):
+    """Get status of a resource by UUID"""
+    try:
+        checkout_manager = current_app.checkout_manager
+        status = checkout_manager.get_resource_status(uuid)
+        
+        if not status:
+            return jsonify({'error': 'Resource not found'}), 404
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        logger.error(f"Error in get_resource_status for {uuid}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@resource_bp.route('/<uuid>/validate', methods=['GET'])
+def validate_resource_access(uuid):
+    """Validate if current client can access a resource"""
+    try:
+        client_ip = request.remote_addr
+        if not client_ip:
+            return jsonify({'error': 'Unable to determine client IP'}), 400
+        
+        checkout_manager = current_app.checkout_manager
+        can_access, error_message = checkout_manager.validate_resource_access(uuid, client_ip)
+        
+        return jsonify({
+            'can_access': can_access,
+            'error': error_message if not can_access else None
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in validate_resource_access for {uuid}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+def _get_resource_filename(mapping: dict, resource_path) -> str:
+    """Get appropriate filename for resource based on type and path"""
+    from pathlib import Path
+    
+    resource_type = mapping['resource_type']
+    actual_name = mapping['actual_resource_name']
+    
     if resource_type in ['principal', 'worker']:
-        return 'keytab'
+        return f"{actual_name}.keytab"
     elif resource_type == 'cert':
-        return 'crt'
+        return f"{actual_name}.crt"
     elif resource_type == 'key':
-        return 'key'
+        return f"{actual_name}.key"
     else:
-        return 'bin'
+        # Fallback to using the actual filename
+        return Path(resource_path).name
 
 # The end.

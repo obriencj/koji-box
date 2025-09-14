@@ -13,8 +13,8 @@ status_bp = Blueprint('status', __name__)
 def get_resource_status(uuid):
     """Get status of a resource by UUID"""
     try:
-        db_manager = current_app.db_manager
-        status = db_manager.get_resource_status(uuid)
+        checkout_manager = current_app.checkout_manager
+        status = checkout_manager.get_resource_status(uuid)
         
         if not status:
             return jsonify({'error': 'Resource not found'}), 404
@@ -38,7 +38,8 @@ def health_check():
         is_connected = container_client.is_connected()
         
         # Clean up dead containers
-        cleaned = container_client.cleanup_dead_containers(db_manager)
+        checkout_manager = current_app.checkout_manager
+        cleaned = checkout_manager.cleanup_dead_containers()
         
         return jsonify({
             'status': 'healthy',

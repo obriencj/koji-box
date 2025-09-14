@@ -37,6 +37,7 @@ class ContainerClient:
     def identify_container_by_ip(self, request_ip: str) -> Tuple[Optional[str], Optional[int]]:
         """
         Identify container by IP address and return (container_id, scale_index)
+        Enhanced with multiple fallback methods and better error handling
         """
         if not self.is_connected():
             logger.error("Docker client not connected")
@@ -44,20 +45,28 @@ class ContainerClient:
         
         try:
             containers = self.client.containers.list()
+            logger.debug(f"Searching {len(containers)} containers for IP {request_ip}")
             
+            # Method 1: Direct IP matching
             for container in containers:
-                # Check all network interfaces
-                networks = container.attrs.get('NetworkSettings', {}).get('Networks', {})
-                
-                for network_name, network_info in networks.items():
-                    container_ip = network_info.get('IPAddress')
-                    if container_ip == request_ip:
-                        logger.info(f"Found container {container.id} for IP {request_ip}")
-                        
-                        # Extract scale index
-                        scale_index = self._extract_scale_index(container)
-                        
-                        return container.id, scale_index
+                if self._check_container_ip(container, request_ip):
+                    logger.info(f"Found container {container.id} for IP {request_ip} (direct match)")
+                    scale_index = self._extract_scale_index(container)
+                    return container.id, scale_index
+            
+            # Method 2: Check for containers with similar IPs (subnet matching)
+            for container in containers:
+                if self._check_container_ip_subnet(container, request_ip):
+                    logger.info(f"Found container {container.id} for IP {request_ip} (subnet match)")
+                    scale_index = self._extract_scale_index(container)
+                    return container.id, scale_index
+            
+            # Method 3: Check container labels for explicit IP mapping
+            for container in containers:
+                if self._check_container_ip_label(container, request_ip):
+                    logger.info(f"Found container {container.id} for IP {request_ip} (label match)")
+                    scale_index = self._extract_scale_index(container)
+                    return container.id, scale_index
             
             logger.warning(f"No container found for IP {request_ip}")
             return None, None
@@ -65,6 +74,48 @@ class ContainerClient:
         except Exception as e:
             logger.error(f"Error identifying container by IP {request_ip}: {e}")
             return None, None
+    
+    def _check_container_ip(self, container, request_ip: str) -> bool:
+        """Check if container has the exact IP address"""
+        try:
+            networks = container.attrs.get('NetworkSettings', {}).get('Networks', {})
+            for network_name, network_info in networks.items():
+                container_ip = network_info.get('IPAddress')
+                if container_ip == request_ip:
+                    return True
+            return False
+        except Exception as e:
+            logger.debug(f"Error checking container IP for {container.id}: {e}")
+            return False
+    
+    def _check_container_ip_subnet(self, container, request_ip: str) -> bool:
+        """Check if container IP is in the same subnet as request IP"""
+        try:
+            import ipaddress
+            request_net = ipaddress.ip_network(f"{request_ip}/24", strict=False)
+            
+            networks = container.attrs.get('NetworkSettings', {}).get('Networks', {})
+            for network_name, network_info in networks.items():
+                container_ip = network_info.get('IPAddress')
+                if container_ip and ipaddress.ip_address(container_ip) in request_net:
+                    return True
+            return False
+        except Exception as e:
+            logger.debug(f"Error checking container subnet for {container.id}: {e}")
+            return False
+    
+    def _check_container_ip_label(self, container, request_ip: str) -> bool:
+        """Check if container has explicit IP mapping in labels"""
+        try:
+            labels = container.labels
+            if 'orch.client.ip' in labels and labels['orch.client.ip'] == request_ip:
+                return True
+            if 'orch.ip' in labels and labels['orch.ip'] == request_ip:
+                return True
+            return False
+        except Exception as e:
+            logger.debug(f"Error checking container IP label for {container.id}: {e}")
+            return False
     
     def _extract_scale_index(self, container) -> Optional[int]:
         """Extract scale index from container metadata"""

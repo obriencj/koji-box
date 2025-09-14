@@ -7,6 +7,8 @@ Main application entry point
 import os
 import logging
 import subprocess
+import threading
+import time
 from flask import Flask, jsonify, redirect
 from app import create_app
 
@@ -22,6 +24,22 @@ app = create_app()
 
 # Add configuration
 app.config['KRB5_REALM'] = os.getenv('KRB5_REALM', 'KOJI.BOX')
+
+def background_cleanup():
+    """Background task to clean up dead container checkouts"""
+    while True:
+        try:
+            time.sleep(300)  # Run every 5 minutes
+            if hasattr(app, 'checkout_manager'):
+                cleaned = app.checkout_manager.cleanup_dead_containers()
+                if cleaned > 0:
+                    logger.info(f"Background cleanup: removed {cleaned} dead container checkouts")
+        except Exception as e:
+            logger.error(f"Error in background cleanup: {e}")
+
+# Start background cleanup thread
+cleanup_thread = threading.Thread(target=background_cleanup, daemon=True)
+cleanup_thread.start()
 
 @app.route('/')
 def index():
