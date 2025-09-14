@@ -229,6 +229,7 @@ Multiple methods for container identification:
 2. **Container Identification**:
    - **Method**: Requestor IP address → Docker socket API lookup
    - **Process**: Extract client IP from request, query Docker API for container with matching IP
+   - **Security Rationale**: IP addresses cannot be easily spoofed by malicious containers, unlike request headers
    - **Fallback**: Container name parsing if IP lookup fails
 
 3. **Resource Cleanup**:
@@ -403,18 +404,42 @@ services/orch/
 - **Problem**: Scale index detection may fail in some scenarios
 - **Mitigation**: Multiple fallback methods and clear error messages
 
+### Security Analysis
+
+#### Why IP-Based Identification is Necessary
+**Security Threat**: Request header spoofing
+- Malicious containers could send fake `X-Container-ID` headers
+- This would allow unauthorized access to any resource
+- Even in a non-production environment, this creates a dangerous precedent
+
+**IP Address Security**:
+- Container IP addresses are controlled by Docker's networking layer
+- Malicious containers cannot easily spoof their source IP in HTTP requests
+- IP addresses provide a trusted identifier that cannot be manipulated by the requestor
+
+**Network Isolation Benefits**:
+- Each container gets a unique IP within the Docker network
+- Network policies can be enforced at the Docker level
+- IP-based identification aligns with network security principles
+
 ### Critical Concerns & Recommendations
 
 #### 1. IP Address-Based Container Identification
-**Concern**: Using IP addresses for container identification is inherently fragile
+**Security Rationale**: IP-based identification is chosen for security reasons
+- **Primary Concern**: Request headers can be easily spoofed by malicious containers
+- **Security Risk**: Trusting self-identified container IDs would create major vulnerability
+- **Approach**: Use IP address as the only trusted identifier from the request
+
+**Implementation Challenges**:
 - Container IPs can change during restarts
 - Multiple containers may share IPs in some network configurations
 - Docker networking can be complex with overlays, bridges, etc.
 
-**Recommendation**:
-- Primary: Use container name + network inspection
-- Fallback: IP address matching
-- Add container labels for explicit identification
+**Mitigation Strategies**:
+- Use container name + network inspection for more reliable IP-to-container mapping
+- Implement robust IP address resolution that checks all container network interfaces
+- Add comprehensive logging for IP resolution failures
+- Use Docker labels as additional validation (not primary identification)
 
 #### 2. Environment Variable Management Complexity
 **Concern**: Managing UUIDs via environment variables could become unwieldy
@@ -463,7 +488,7 @@ services/orch/
 ### Alternative Approaches to Consider
 
 #### Option 1: Request Header-Based Identification
-Instead of IP-based identification, use request headers:
+~~Instead of IP-based identification, use request headers:~~
 ```http
 X-Container-ID: abc123def456
 X-Scale-Index: 3
@@ -471,7 +496,9 @@ X-Resource-UUID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 **Pros**: More reliable, explicit, easier to debug
-**Cons**: Requires container modification, can be spoofed
+**Cons**: ~~Requires container modification,~~ **SECURITY RISK: Can be easily spoofed by malicious containers**
+
+**Status**: **REJECTED** - Security vulnerability makes this approach unsuitable
 
 #### Option 2: Container Label-Based Mapping
 Use Docker labels to map containers to resources:
@@ -487,14 +514,35 @@ services:
 **Pros**: No IP dependency, explicit mapping, Docker-native
 **Cons**: Requires container restart to change mappings
 
-#### Option 3: Hybrid Approach
-Combine multiple identification methods:
-1. Try request headers first
-2. Fall back to IP + Docker socket
-3. Use container labels as final fallback
+#### Option 3: Enhanced IP-Based Identification
+Improve the IP-based approach with additional validation:
+1. **Primary**: IP address → Docker socket lookup
+2. **Validation**: Cross-reference with container labels for additional verification
+3. **Fallback**: Container name pattern matching if IP resolution fails
+4. **Security**: Log all identification attempts for audit trail
 
-**Pros**: Most reliable, graceful degradation
-**Cons**: More complex implementation
+**Pros**: Secure (no spoofing), reliable with proper implementation
+**Cons**: More complex IP resolution logic required
+
+**Implementation Details**:
+```python
+def identify_container(request_ip):
+    """Enhanced container identification with security focus"""
+    # Get all containers and their network configurations
+    containers = docker_client.containers.list()
+
+    for container in containers:
+        # Check all network interfaces
+        networks = container.attrs['NetworkSettings']['Networks']
+        for network_name, network_info in networks.items():
+            if network_info.get('IPAddress') == request_ip:
+                # Additional validation via labels
+                labels = container.labels
+                if 'orch.verified' in labels:
+                    return container, labels.get('orch.scale.index')
+
+    return None, None
+```
 
 ### Implementation Timeline
 
