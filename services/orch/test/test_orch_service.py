@@ -12,12 +12,12 @@ from typing import Dict, Any
 
 class OrchServiceTester:
     """Test suite for the Orch service"""
-    
+
     def __init__(self, base_url: str = "http://localhost:5000"):
         self.base_url = base_url
         self.session = requests.Session()
         self.test_results = []
-    
+
     def log_test(self, test_name: str, success: bool, message: str = ""):
         """Log test result"""
         status = "PASS" if success else "FAIL"
@@ -27,7 +27,7 @@ class OrchServiceTester:
             'success': success,
             'message': message
         })
-    
+
     def test_health_check(self) -> bool:
         """Test health check endpoint"""
         try:
@@ -46,7 +46,7 @@ class OrchServiceTester:
         except Exception as e:
             self.log_test("Health Check", False, str(e))
             return False
-    
+
     def test_v2_health_check(self) -> bool:
         """Test V2 health check endpoint"""
         try:
@@ -65,7 +65,7 @@ class OrchServiceTester:
         except Exception as e:
             self.log_test("V2 Health Check", False, str(e))
             return False
-    
+
     def test_api_documentation(self) -> bool:
         """Test API documentation endpoint"""
         try:
@@ -84,7 +84,7 @@ class OrchServiceTester:
         except Exception as e:
             self.log_test("API Documentation", False, str(e))
             return False
-    
+
     def test_resource_mappings(self) -> bool:
         """Test resource mappings endpoint"""
         try:
@@ -104,7 +104,7 @@ class OrchServiceTester:
         except Exception as e:
             self.log_test("Resource Mappings", False, str(e))
             return False
-    
+
     def test_invalid_uuid_validation(self) -> bool:
         """Test UUID validation with invalid UUID"""
         try:
@@ -124,7 +124,7 @@ class OrchServiceTester:
         except Exception as e:
             self.log_test("Invalid UUID Validation", False, str(e))
             return False
-    
+
     def test_nonexistent_resource(self) -> bool:
         """Test accessing non-existent resource"""
         try:
@@ -144,7 +144,7 @@ class OrchServiceTester:
         except Exception as e:
             self.log_test("Non-existent Resource", False, str(e))
             return False
-    
+
     def test_v1_backward_compatibility(self) -> bool:
         """Test V1 API backward compatibility"""
         try:
@@ -159,12 +159,12 @@ class OrchServiceTester:
         except Exception as e:
             self.log_test("V1 Principal API", False, str(e))
             return False
-    
+
     def run_all_tests(self) -> Dict[str, Any]:
         """Run all tests and return results"""
         print("Starting Orch Service Test Suite...")
         print("=" * 50)
-        
+
         tests = [
             self.test_health_check,
             self.test_v2_health_check,
@@ -174,17 +174,17 @@ class OrchServiceTester:
             self.test_nonexistent_resource,
             self.test_v1_backward_compatibility
         ]
-        
+
         passed = 0
         total = len(tests)
-        
+
         for test in tests:
             if test():
                 passed += 1
-        
+
         print("=" * 50)
         print(f"Test Results: {passed}/{total} tests passed")
-        
+
         return {
             'total': total,
             'passed': passed,
@@ -195,10 +195,10 @@ class OrchServiceTester:
 def main():
     """Main test function"""
     base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5000"
-    
+
     tester = OrchServiceTester(base_url)
     results = tester.run_all_tests()
-    
+
     if results['failed'] > 0:
         print(f"\n{results['failed']} tests failed!")
         sys.exit(1)

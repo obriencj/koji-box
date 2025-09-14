@@ -14,12 +14,12 @@ logger = logging.getLogger(__name__)
 
 class KeytabServiceMigrator:
     """Migrates from keytab-service to orch service"""
-    
+
     def __init__(self, old_service_url: str, new_service_url: str):
         self.old_service_url = old_service_url
         self.new_service_url = new_service_url
         self.session = requests.Session()
-    
+
     def get_old_service_status(self) -> Dict[str, Any]:
         """Get status from old keytab service"""
         try:
@@ -32,7 +32,7 @@ class KeytabServiceMigrator:
         except Exception as e:
             logger.error(f"Failed to check old service status: {e}")
             return {}
-    
+
     def get_new_service_status(self) -> Dict[str, Any]:
         """Get status from new orch service"""
         try:
@@ -45,7 +45,7 @@ class KeytabServiceMigrator:
         except Exception as e:
             logger.error(f"Failed to check new service status: {e}")
             return {}
-    
+
     def get_resource_mappings(self) -> List[Dict[str, Any]]:
         """Get resource mappings from new service"""
         try:
@@ -59,11 +59,11 @@ class KeytabServiceMigrator:
         except Exception as e:
             logger.error(f"Failed to get resource mappings: {e}")
             return []
-    
+
     def generate_migration_guide(self) -> str:
         """Generate migration guide for containers"""
         mappings = self.get_resource_mappings()
-        
+
         guide = """
 # Migration Guide: keytab-service to orch service
 
@@ -105,13 +105,13 @@ curl -X POST "${ORCH_SERVICE_URL}/api/v2/resource/${RESOURCE_UUID}" -o keytab
 ### 3. Resource Mappings
 The following resource mappings are available:
 """
-        
+
         for mapping in mappings:
             guide += f"""
 - **{mapping['uuid']}**: {mapping['resource_type']} - {mapping['actual_resource_name']}
   Description: {mapping.get('description', 'No description')}
 """
-        
+
         guide += """
 ### 4. API Endpoints
 
@@ -159,22 +159,22 @@ If issues occur, you can temporarily switch back to the old service by:
 ## Support
 For issues or questions, check the API documentation at `/api/v2/docs/`
 """
-        
+
         return guide
-    
+
     def save_migration_guide(self, filename: str = "MIGRATION_GUIDE.md"):
         """Save migration guide to file"""
         guide = self.generate_migration_guide()
         with open(filename, 'w') as f:
             f.write(guide)
         logger.info(f"Migration guide saved to {filename}")
-    
+
     def check_migration_readiness(self) -> Dict[str, Any]:
         """Check if migration is ready"""
         old_status = self.get_old_service_status()
         new_status = self.get_new_service_status()
         mappings = self.get_resource_mappings()
-        
+
         return {
             'old_service_healthy': old_status.get('status') == 'healthy',
             'new_service_healthy': new_status.get('status') == 'healthy',
@@ -190,20 +190,20 @@ For issues or questions, check the API documentation at `/api/v2/docs/`
 def main():
     """Main migration function"""
     import sys
-    
+
     old_url = sys.argv[1] if len(sys.argv) > 1 else "http://keytabs.koji.box:5000"
     new_url = sys.argv[2] if len(sys.argv) > 2 else "http://orch.koji.box:5000"
-    
+
     migrator = KeytabServiceMigrator(old_url, new_url)
-    
+
     print("Checking migration readiness...")
     readiness = migrator.check_migration_readiness()
-    
+
     print(f"Old service healthy: {readiness['old_service_healthy']}")
     print(f"New service healthy: {readiness['new_service_healthy']}")
     print(f"Mappings loaded: {readiness['mappings_loaded']} ({readiness['mapping_count']} mappings)")
     print(f"Ready for migration: {readiness['ready_for_migration']}")
-    
+
     if readiness['ready_for_migration']:
         print("\nGenerating migration guide...")
         migrator.save_migration_guide()

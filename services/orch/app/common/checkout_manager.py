@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 
 class CheckoutManager:
     """Manages resource checkout operations with security validation"""
-    
+
     def __init__(self, db_manager: DatabaseManager, resource_manager: ResourceManager, container_client: ContainerClient):
         self.db = db_manager
         self.resource_manager = resource_manager
         self.container_client = container_client
-    
+
     def checkout_resource(self, uuid: str, client_ip: str) -> Tuple[bool, Optional[Path], Optional[str]]:
         """
         Checkout a resource by UUID for a client IP
@@ -32,16 +32,16 @@ class CheckoutManager:
             container_id, scale_index = self.container_client.identify_container_by_ip(client_ip)
             if not container_id:
                 return False, None, "Unable to identify requesting container"
-            
+
             # Step 2: Verify container is running
             if not self.container_client.is_container_running(container_id):
                 return False, None, "Requesting container is not running"
-            
+
             # Step 3: Get resource mapping
             mapping = self.db.get_resource_mapping(uuid)
             if not mapping:
                 return False, None, "Resource not found"
-            
+
             # Step 4: Check current checkout status
             status = self.db.get_resource_status(uuid)
             if status and status['checked_out']:
@@ -52,12 +52,12 @@ class CheckoutManager:
                     # Previous owner is dead, clean up
                     logger.info(f"Cleaning up dead container checkout for {uuid}")
                     self.db.release_resource(uuid, status['container_id'])
-            
+
             # Step 5: Determine actual resource name (handle scaling)
             actual_resource_name = mapping['actual_resource_name']
             if mapping['resource_type'] == 'worker' and scale_index is not None:
                 actual_resource_name = f"{mapping['actual_resource_name']}-{scale_index}"
-            
+
             # Step 6: Checkout the resource in database
             if not self.db.checkout_resource(
                 uuid=uuid,
@@ -68,7 +68,7 @@ class CheckoutManager:
                 scale_index=scale_index
             ):
                 return False, None, "Failed to checkout resource in database"
-            
+
             # Step 7: Create/get the actual resource
             try:
                 resource_path = self.resource_manager.get_or_create_resource(
@@ -76,25 +76,25 @@ class CheckoutManager:
                     actual_resource_name=actual_resource_name,
                     scale_index=scale_index
                 )
-                
+
                 if not resource_path:
                     # Rollback database checkout
                     self.db.release_resource(uuid, container_id)
                     return False, None, "Failed to create resource"
-                
+
                 logger.info(f"Successfully checked out resource {uuid} to container {container_id}")
                 return True, resource_path, None
-                
+
             except Exception as e:
                 # Rollback database checkout
                 self.db.release_resource(uuid, container_id)
                 logger.error(f"Error creating resource for {uuid}: {e}")
                 return False, None, f"Failed to create resource: {str(e)}"
-        
+
         except Exception as e:
             logger.error(f"Error in checkout_resource for {uuid}: {e}")
             return False, None, f"Internal error: {str(e)}"
-    
+
     def release_resource(self, uuid: str, client_ip: str) -> Tuple[bool, Optional[str]]:
         """
         Release a resource by UUID for a client IP
@@ -105,41 +105,41 @@ class CheckoutManager:
             container_id, _ = self.container_client.identify_container_by_ip(client_ip)
             if not container_id:
                 return False, "Unable to identify requesting container"
-            
+
             # Step 2: Verify container is running
             if not self.container_client.is_container_running(container_id):
                 return False, "Requesting container is not running"
-            
+
             # Step 3: Release the resource
             if not self.db.release_resource(uuid, container_id):
                 return False, "Resource not checked out to this container"
-            
+
             logger.info(f"Successfully released resource {uuid} from container {container_id}")
             return True, None
-        
+
         except Exception as e:
             logger.error(f"Error in release_resource for {uuid}: {e}")
             return False, f"Internal error: {str(e)}"
-    
+
     def get_resource_status(self, uuid: str) -> Optional[Dict]:
         """Get detailed resource status including container validation"""
         try:
             status = self.db.get_resource_status(uuid)
             if not status:
                 return None
-            
+
             # Add container validation if checked out
             if status['checked_out'] and status['container_id']:
                 container_info = self.container_client.get_container_info(status['container_id'])
                 status['container_info'] = container_info
                 status['container_running'] = self.container_client.is_container_running(status['container_id'])
-            
+
             return status
-        
+
         except Exception as e:
             logger.error(f"Error in get_resource_status for {uuid}: {e}")
             return None
-    
+
     def cleanup_dead_containers(self) -> int:
         """Clean up checkouts for containers that no longer exist"""
         try:
@@ -147,7 +147,7 @@ class CheckoutManager:
         except Exception as e:
             logger.error(f"Error cleaning up dead containers: {e}")
             return 0
-    
+
     def validate_resource_access(self, uuid: str, client_ip: str) -> Tuple[bool, Optional[str]]:
         """
         Validate if a client can access a resource
@@ -158,20 +158,20 @@ class CheckoutManager:
             mapping = self.db.get_resource_mapping(uuid)
             if not mapping:
                 return False, "Resource not found"
-            
+
             # Check if resource is checked out
             status = self.db.get_resource_status(uuid)
             if not status or not status['checked_out']:
                 return True, None  # Resource is available
-            
+
             # Check if requesting container owns the resource
             container_id, _ = self.container_client.identify_container_by_ip(client_ip)
             if not container_id:
                 return False, "Unable to identify requesting container"
-            
+
             if status['container_id'] == container_id:
                 return True, None  # Container owns the resource
-            
+
             # Check if previous owner is still alive
             if self.container_client.is_container_running(status['container_id']):
                 return False, "Resource checked out to another container"
@@ -179,7 +179,7 @@ class CheckoutManager:
                 # Previous owner is dead, resource can be accessed
                 logger.info(f"Previous owner of {uuid} is dead, allowing access")
                 return True, None
-        
+
         except Exception as e:
             logger.error(f"Error validating resource access for {uuid}: {e}")
             return False, f"Internal error: {str(e)}"

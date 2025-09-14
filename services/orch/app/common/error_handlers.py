@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class ErrorResponse:
     """Standardized error response format"""
-    
+
     @staticmethod
     def create_error_response(
         error_code: str,
@@ -30,9 +30,9 @@ class ErrorResponse:
             'request_id': getattr(request, 'id', None),
             'timestamp': current_app.config.get('TIMESTAMP', None)
         }
-        
+
         return jsonify(response), status_code
-    
+
     @staticmethod
     def validation_error(message: str, field: str = None, value: str = None) -> tuple:
         """Create a validation error response"""
@@ -41,14 +41,14 @@ class ErrorResponse:
             details['field'] = field
         if value:
             details['value'] = value
-        
+
         return ErrorResponse.create_error_response(
             'VALIDATION_ERROR',
             message,
             details,
             400
         )
-    
+
     @staticmethod
     def resource_not_found(resource_type: str, identifier: str) -> tuple:
         """Create a resource not found error response"""
@@ -58,7 +58,7 @@ class ErrorResponse:
             {'resource_type': resource_type, 'identifier': identifier},
             404
         )
-    
+
     @staticmethod
     def resource_already_checked_out(uuid: str, container_id: str) -> tuple:
         """Create a resource already checked out error response"""
@@ -68,7 +68,7 @@ class ErrorResponse:
             {'uuid': uuid, 'container_id': container_id},
             409
         )
-    
+
     @staticmethod
     def container_not_found(ip: str) -> tuple:
         """Create a container not found error response"""
@@ -78,7 +78,7 @@ class ErrorResponse:
             {'client_ip': ip},
             400
         )
-    
+
     @staticmethod
     def container_not_running(container_id: str) -> tuple:
         """Create a container not running error response"""
@@ -88,7 +88,7 @@ class ErrorResponse:
             {'container_id': container_id},
             400
         )
-    
+
     @staticmethod
     def resource_creation_failed(resource_type: str, name: str, reason: str) -> tuple:
         """Create a resource creation failed error response"""
@@ -98,7 +98,7 @@ class ErrorResponse:
             {'resource_type': resource_type, 'name': name, 'reason': reason},
             500
         )
-    
+
     @staticmethod
     def database_error(operation: str, details: str) -> tuple:
         """Create a database error response"""
@@ -108,7 +108,7 @@ class ErrorResponse:
             {'operation': operation, 'details': details},
             500
         )
-    
+
     @staticmethod
     def container_client_error(operation: str, details: str) -> tuple:
         """Create a container client error response"""
@@ -118,7 +118,7 @@ class ErrorResponse:
             {'operation': operation, 'details': details},
             500
         )
-    
+
     @staticmethod
     def internal_error(message: str, details: Optional[Dict[str, Any]] = None) -> tuple:
         """Create an internal server error response"""
@@ -132,7 +132,7 @@ class ErrorResponse:
 
 class ErrorLogger:
     """Centralized error logging"""
-    
+
     @staticmethod
     def log_error(error_type: str, message: str, details: Optional[Dict[str, Any]] = None, exception: Exception = None):
         """Log an error with consistent formatting"""
@@ -144,13 +144,13 @@ class ErrorLogger:
             'client_ip': request.remote_addr if request else None,
             'user_agent': request.headers.get('User-Agent') if request else None
         }
-        
+
         if exception:
             log_data['exception'] = str(exception)
             log_data['exception_type'] = type(exception).__name__
-        
+
         logger.error(f"{error_type}: {message}", extra=log_data)
-    
+
     @staticmethod
     def log_validation_error(field: str, value: str, message: str):
         """Log a validation error"""
@@ -159,7 +159,7 @@ class ErrorLogger:
             f"Validation failed for field '{field}'",
             {'field': field, 'value': value, 'validation_message': message}
         )
-    
+
     @staticmethod
     def log_security_error(operation: str, details: str):
         """Log a security-related error"""
@@ -168,7 +168,7 @@ class ErrorLogger:
             f"Security violation in {operation}",
             {'operation': operation, 'details': details}
         )
-    
+
     @staticmethod
     def log_resource_error(operation: str, resource_id: str, details: str):
         """Log a resource-related error"""
@@ -181,13 +181,13 @@ class ErrorLogger:
 
 class ErrorHandler:
     """Centralized error handling for Flask routes"""
-    
+
     @staticmethod
     def handle_validation_error(field: str, value: str, message: str) -> tuple:
         """Handle validation errors"""
         ErrorLogger.log_validation_error(field, value, message)
         return ErrorResponse.validation_error(message, field, value)
-    
+
     @staticmethod
     def handle_resource_not_found(resource_type: str, identifier: str) -> tuple:
         """Handle resource not found errors"""
@@ -197,7 +197,7 @@ class ErrorHandler:
             {'resource_type': resource_type, 'identifier': identifier}
         )
         return ErrorResponse.resource_not_found(resource_type, identifier)
-    
+
     @staticmethod
     def handle_container_error(operation: str, details: str, exception: Exception = None) -> tuple:
         """Handle container-related errors"""
@@ -208,7 +208,7 @@ class ErrorHandler:
             exception
         )
         return ErrorResponse.container_client_error(operation, details)
-    
+
     @staticmethod
     def handle_database_error(operation: str, details: str, exception: Exception = None) -> tuple:
         """Handle database errors"""
@@ -219,7 +219,7 @@ class ErrorHandler:
             exception
         )
         return ErrorResponse.database_error(operation, details)
-    
+
     @staticmethod
     def handle_internal_error(message: str, exception: Exception = None, details: Optional[Dict[str, Any]] = None) -> tuple:
         """Handle internal server errors"""

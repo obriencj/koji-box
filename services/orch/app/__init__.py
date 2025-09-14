@@ -13,23 +13,23 @@ from .common.checkout_manager import CheckoutManager
 def create_app():
     """Create and configure the Flask application"""
     app = Flask(__name__)
-    
+
     # Initialize components
     app.db_manager = DatabaseManager()
     app.resource_manager = ResourceManager(app.db_manager)
     app.container_client = ContainerClient()
     app.checkout_manager = CheckoutManager(app.db_manager, app.resource_manager, app.container_client)
-    
+
     # Load resource mappings
     app.resource_manager.load_resource_mappings()
-    
+
     # Register blueprints
     from .v1 import bp as v1_bp
     from .v2 import bp as v2_bp
-    
+
     app.register_blueprint(v1_bp, url_prefix='/api/v1')
     app.register_blueprint(v2_bp, url_prefix='/api/v2')
-    
+
     return app
 
 # The end.

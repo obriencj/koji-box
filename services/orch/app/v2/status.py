@@ -15,12 +15,12 @@ def get_resource_status(uuid):
     try:
         checkout_manager = current_app.checkout_manager
         status = checkout_manager.get_resource_status(uuid)
-        
+
         if not status:
             return jsonify({'error': 'Resource not found'}), 404
-        
+
         return jsonify(status)
-        
+
     except Exception as e:
         logger.error(f"Error in get_resource_status for {uuid}: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -32,15 +32,15 @@ def health_check():
         # Check database connection
         db_manager = current_app.db_manager
         mappings = db_manager.get_all_mappings()
-        
+
         # Check container client connection
         container_client = current_app.container_client
         is_connected = container_client.is_connected()
-        
+
         # Clean up dead containers
         checkout_manager = current_app.checkout_manager
         cleaned = checkout_manager.cleanup_dead_containers()
-        
+
         return jsonify({
             'status': 'healthy',
             'service': 'orch-service',
@@ -50,7 +50,7 @@ def health_check():
             'mappings_loaded': len(mappings),
             'containers_cleaned': cleaned
         })
-        
+
     except Exception as e:
         logger.error(f"Error in health_check: {e}")
         return jsonify({
@@ -66,7 +66,7 @@ def get_all_mappings():
         db_manager = current_app.db_manager
         mappings = db_manager.get_all_mappings()
         return jsonify({'mappings': mappings})
-        
+
     except Exception as e:
         logger.error(f"Error in get_all_mappings: {e}")
         return jsonify({'error': 'Internal server error'}), 500

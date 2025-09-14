@@ -17,22 +17,22 @@ def get_worker(worker_name):
         # Validate worker name
         if not worker_name or '/' in worker_name or '@' in worker_name:
             return jsonify({'error': 'Invalid worker name'}), 400
-        
+
         # Get resource manager
         resource_manager = current_app.resource_manager
-        
+
         # Create worker resource (this handles principal creation, keytab, and host registration)
         keytab_path = resource_manager._get_or_create_worker(worker_name)
         if not keytab_path:
             return jsonify({'error': 'Failed to create worker resource'}), 500
-        
+
         # Serve the keytab
         return send_file(
-            str(keytab_path), 
-            as_attachment=True, 
+            str(keytab_path),
+            as_attachment=True,
             download_name=f"koji/{worker_name}.koji.box.keytab"
         )
-        
+
     except Exception as e:
         logger.error(f"Error in get_worker for {worker_name}: {e}")
         return jsonify({'error': 'Internal server error'}), 500
