@@ -23,6 +23,9 @@ x-common-koji: &common-koji
 x-common-keytab-service: &common-keytab-service
   KEYTAB_SERVICE_URL: ${KEYTAB_SERVICE_URL:-http://keytabs.koji.box:5000}
 
+x-common-orch-service: &common-orch-service
+  ORCH_SERVICE_URL: ${ORCH_SERVICE_URL:-http://orch.koji.box:5000}
+
 x-common-kadmin: &common-kadmin
   KADMIN_PRINC: ${KADMIN_PRINC:-admin/admin}
   KADMIN_PASS: ${KADMIN_PASS:-admin_password}
@@ -125,6 +128,54 @@ services:
           memory: 256m
         reservations:
           memory: 128m
+
+  orch-service:
+    build:
+      context: .
+      dockerfile: services/orch/Dockerfile
+    container_name: koji-boxed-orch-service
+    depends_on:
+      kdc:
+        condition: service_healthy
+    environment:
+      <<: [*common-kerberos,
+           *common-koji,
+           *common-kadmin,
+           *common-orch-service]
+      # Resource UUIDs for different services
+      KOJI_HUB_KEYTAB: ${KOJI_HUB_KEYTAB:-a1b2c3d4-e5f6-7890-abcd-ef1234567890}
+      KOJI_HUB_PRINC: ${KOJI_HUB_PRINC:-HTTP/koji-hub.koji.box@KOJI.BOX}
+      KOJI_NGINX_KEYTAB: ${KOJI_NGINX_KEYTAB:-b2c3d4e5-f6g7-8901-bcde-f23456789012}
+      KOJI_NGINX_PRINC: ${KOJI_NGINX_PRINC:-HTTP/koji.box@KOJI.BOX}
+      KOJI_WEB_KEYTAB: ${KOJI_WEB_KEYTAB:-c3d4e5f6-g7h8-9012-cdef-345678901234}
+      KOJI_WEB_PRINC: ${KOJI_WEB_PRINC:-HTTP/koji-web.koji.box@KOJI.BOX}
+      KOJI_ADMIN_KEYTAB: ${KOJI_ADMIN_KEYTAB:-d4e5f6g7-h8i9-0123-defg-456789012345}
+      KOJI_ADMIN_PRINC: ${KOJI_ADMIN_PRINC:-hub-admin@KOJI.BOX}
+      KOJI_WORKER_KEYTAB: ${KOJI_WORKER_KEYTAB:-e5f6g7h8-i9j0-1234-efgh-567890123456}
+      KOJI_HUB_CERT: ${KOJI_HUB_CERT:-f6g7h8i9-j0k1-2345-fghi-678901234567}
+      KOJI_HUB_CERT_CN: ${KOJI_HUB_CERT_CN:-koji-hub.koji.box}
+      KOJI_HUB_KEY: ${KOJI_HUB_KEY:-g7h8i9j0-k1l2-3456-ghij-789012345678}
+      KOJI_NGINX_CERT: ${KOJI_NGINX_CERT:-h8i9j0k1-l2m3-4567-hijk-890123456789}
+      KOJI_NGINX_CERT_CN: ${KOJI_NGINX_CERT_CN:-koji.box}
+      KOJI_NGINX_KEY: ${KOJI_NGINX_KEY:-i9j0k1l2-m3n4-5678-ijkl-901234567890}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data/orch:/mnt/data:Z
+    networks:
+      koji-network:
+        aliases:
+          - orch.koji.box
+    healthcheck:
+      test: ["CMD-SHELL", "/app/health-check.sh"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
 
   koji-hub:
     build:
