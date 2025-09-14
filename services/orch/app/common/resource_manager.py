@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""
+Resource management for the Orch service
+Handles resource creation, mapping, and lifecycle management
+"""
+
+import os
+import json
+import logging
+import subprocess
+import tempfile
+from pathlib import Path
+from typing import Dict, Optional, Tuple
+from urllib.parse import quote_plus as urlquote
+
+from .database import DatabaseManager
+
+logger = logging.getLogger(__name__)
+
+class ResourceManager:
+    """Manages resource creation and lifecycle"""
+    
+    def __init__(self, db_manager: DatabaseManager):
+        self.db = db_manager
+        
+        # Configuration from environment
+        self.krb5_realm = os.getenv('KRB5_REALM', 'KOJI.BOX')
+        self.kdc_host = os.getenv('KDC_HOST', 'kdc.koji.box')
+        self.kadmin_princ = os.getenv('KADMIN_PRINC', f'admin/admin@{self.krb5_realm}')
+        self.kadmin_pass = os.getenv('KADMIN_PASS', 'admin_password')
+        
+        # Directory configuration
+        self.keytabs_dir = Path('/mnt/data/keytabs')
+        self.certs_dir = Path('/mnt/data/certs')
+        self.keytabs_dir.mkdir(parents=True, exist_ok=True)
+        self.certs_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Certificate configuration
+        self.cert_country = os.getenv('CERT_COUNTRY', 'US')
+        self.cert_state = os.getenv('CERT_STATE', 'NC')
+        self.cert_location = os.getenv('CERT_LOCATION', 'Raleigh')
+        self.cert_org = os.getenv('CERT_ORG', 'Koji')
+        self.cert_org_unit = os.getenv('CERT_ORG_UNIT', 'Koji')
+        self.cert_days = int(os.getenv('CERT_DAYS', '365'))
+    
+    def load_resource_mappings(self, mapping_file: str = "/app/resource_mapping.json") -> bool:
+        """Load resource mappings from generated JSON file"""
+        try:
+            mapping_path = Path(mapping_file)
+            if not mapping_path.exists():
+                logger.error(f"Resource mapping file not found: {mapping_file}")
+                return False
+            
+            with open(mapping_path, 'r') as f:
+                mappings = json.load(f)
+            
+            loaded_count = 0
+            for uuid, mapping in mappings.items():
+                if self.db.add_resource_mapping(
+                    uuid=uuid,
+                    resource_type=mapping['type'],
+                    actual_resource_name=mapping['resource'],
+                    description=mapping.get('description', '')
+                ):
+                    loaded_count += 1
+            
+            logger.info(f"Loaded {loaded_count} resource mappings")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to load resource mappings: {e}")
+            return False
+    
+    def create_principal(self, principal_name: str) -> bool:
+        """Create a Kerberos principal"""
+        try:
+            cmd = [
+                'kadmin', '-p', f'{self.kadmin_princ}',
+                '-w', self.kadmin_pass,
+                '-q', f'addprinc -randkey {principal_name}'
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                logger.error(f"Failed to create principal {principal_name}: {result.stderr}")
+                return False
+            logger.info(f"Created principal {principal_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Error creating principal {principal_name}: {e}")
+            return False
+    
+    def check_principal_exists(self, principal_name: str) -> bool:
+        """Check if a principal exists in the KDC"""
+        try:
+            cmd = [
+                'kadmin', '-p', f'{self.kadmin_princ}',
+                '-w', self.kadmin_pass,
+                '-q', f'getprinc {principal_name}'
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.stderr and "Principal does not exist" in result.stderr:
+                return False
+            return result.returncode == 0
+        except Exception as e:
+            logger.error(f"Error checking principal {principal_name}: {e}")
+            return False
+    
+    def create_keytab(self, principal_name: str) -> Optional[Path]:
+        """Create a keytab file for the principal"""
+        try:
+            keytab_path = self.keytabs_dir / f"{urlquote(principal_name)}.keytab"
+            
+            if keytab_path.exists():
+                logger.info(f"Keytab already exists: {keytab_path}")
+                return keytab_path
+            
+            cmd = [
+                'kadmin', '-p', f'{self.kadmin_princ}',
+                '-w', self.kadmin_pass,
+                '-q', f'ktadd -k {keytab_path} {principal_name}'
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                logger.error(f"Failed to create keytab for {principal_name}: {result.stderr}")
+                return None
+            
+            keytab_path.chmod(0o644)
+            logger.info(f"Created keytab for {principal_name} at {keytab_path}")
+            return keytab_path
+        except Exception as e:
+            logger.error(f"Error creating keytab for {principal_name}: {e}")
+            return None
+    
+    def create_certificate(self, cn: str) -> Tuple[Optional[Path], Optional[Path]]:
+        """Create SSL certificate and private key"""
+        try:
+            safe_cn = urlquote(cn)
+            key_path = self.certs_dir / f"{safe_cn}.key"
+            crt_path = self.certs_dir / f"{safe_cn}.crt"
+            
+            if key_path.exists() and crt_path.exists():
+                logger.info(f"Certificate already exists for {cn}")
+                return key_path, crt_path
+            
+            cmd = [
+                'openssl', 'req', '-x509', '-nodes', '-days', str(self.cert_days),
+                '-newkey', 'rsa:2048',
+                '-keyout', str(key_path),
+                '-out', str(crt_path),
+                '-subj', f"/C={self.cert_country}/ST={self.cert_state}/L={self.cert_location}/O={self.cert_org}/OU={self.cert_org_unit}/CN={cn}"
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                logger.error(f"Failed to create certificate for {cn}: {result.stderr}")
+                return None, None
+            
+            key_path.chmod(0o644)
+            crt_path.chmod(0o644)
+            
+            logger.info(f"Created certificate for {cn} at {crt_path} and key at {key_path}")
+            return key_path, crt_path
+        except Exception as e:
+            logger.error(f"Error creating certificate for {cn}: {e}")
+            return None, None
+    
+    def manage_koji_host(self, worker_name: str) -> bool:
+        """Manage Koji host using the shell script"""
+        try:
+            cmd = ['/app/manage-koji-host.sh', worker_name]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            if result.returncode != 0:
+                logger.error(f"Failed to manage Koji host {worker_name}: {result.stderr}")
+                return False
+            logger.info(f"Successfully managed Koji host {worker_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Error managing Koji host {worker_name}: {e}")
+            return False
+    
+    def get_or_create_resource(self, resource_type: str, actual_resource_name: str, scale_index: int = None) -> Optional[Path]:
+        """Get or create a resource based on type and name"""
+        try:
+            if resource_type == "principal":
+                return self._get_or_create_principal(actual_resource_name)
+            elif resource_type == "worker":
+                return self._get_or_create_worker(actual_resource_name, scale_index)
+            elif resource_type == "cert":
+                return self._get_or_create_certificate(actual_resource_name)
+            elif resource_type == "key":
+                return self._get_or_create_private_key(actual_resource_name)
+            else:
+                logger.error(f"Unknown resource type: {resource_type}")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting/creating resource {actual_resource_name}: {e}")
+            return None
+    
+    def _get_or_create_principal(self, principal_name: str) -> Optional[Path]:
+        """Get or create a principal keytab"""
+        # Ensure principal exists
+        if not self.check_principal_exists(principal_name):
+            if not self.create_principal(principal_name):
+                return None
+        
+        # Create keytab
+        return self.create_keytab(principal_name)
+    
+    def _get_or_create_worker(self, worker_name: str, scale_index: int = None) -> Optional[Path]:
+        """Get or create a worker keytab and register host"""
+        # Handle scaled resources
+        if scale_index is not None:
+            actual_worker_name = f"{worker_name}-{scale_index}"
+        else:
+            actual_worker_name = worker_name
+        
+        principal_name = f"koji/{actual_worker_name}.koji.box"
+        full_principal_name = f"{principal_name}@{self.krb5_realm}"
+        
+        # Ensure principal exists
+        if not self.check_principal_exists(full_principal_name):
+            if not self.create_principal(full_principal_name):
+                return None
+        
+        # Create keytab
+        keytab_path = self.create_keytab(full_principal_name)
+        if not keytab_path:
+            return None
+        
+        # Register as Koji host
+        if not self.manage_koji_host(actual_worker_name):
+            logger.warning(f"Failed to register Koji host {actual_worker_name}")
+        
+        return keytab_path
+    
+    def _get_or_create_certificate(self, cn: str) -> Optional[Path]:
+        """Get or create an SSL certificate"""
+        key_path, crt_path = self.create_certificate(cn)
+        return crt_path
+    
+    def _get_or_create_private_key(self, cn: str) -> Optional[Path]:
+        """Get or create an SSL private key"""
+        key_path, crt_path = self.create_certificate(cn)
+        return key_path
+
+
+# The end.
