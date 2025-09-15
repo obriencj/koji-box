@@ -32,4 +32,6 @@ echo "✓ Directories created"
 
 echo "Orch service initialization complete"
 
+gunicorn -b 0.0.0.0:5000 app:app
+
 # The end.
