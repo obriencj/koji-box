@@ -5,21 +5,52 @@
 
 set -e
 
-WORKER_NAME="$1"
+function setup_kinit() {
 
-if [ -z "$WORKER_NAME" ]; then
-    echo "ERROR: Worker name required"
-    exit 1
-fi
+    export KRB5_CCNAME="FILE:$(mktemp -d)/krb5cc_orch"
 
-echo "Managing Koji host: $WORKER_NAME"
+    if [ -f /app/orch.keytab ]; then
+        echo "✓ Keytab already exists"
+    else
+        /app/orch.sh ${KOJI_ORCH_KEYTAB} /app/orch.keytab
+    fi
 
-# TODO: Implement actual Koji host management
-# This would typically involve:
-# 1. Checking if host exists in Koji
-# 2. Creating host if it doesn't exist
-# 3. Configuring host settings
+    kinit -k -t /app/orch.keytab ${KOJI_ORCH_PRINC}
+    trap cleanup_kinit EXIT
+}
 
-echo "✓ Koji host $WORKER_NAME managed successfully"
+function cleanup_kinit() {
+    kdestroy
+
+    if [ -n "$KRB5_CCNAME" ]; then
+        rm -rf "$(dirname "$KRB5_CCNAME")"
+    fi
+}
+
+function main() {
+
+    local WORKER_NAME="$1"
+
+    if [ -z "$WORKER_NAME" ]; then
+        echo "ERROR: Worker name required"
+        exit 1
+    fi
+
+    setup_kinit
+
+    echo "Managing Koji host: $WORKER_NAME"
+
+    # TODO: Implement actual Koji host management
+    # This would typically involve:
+    # 1. Checking if host exists in Koji
+    # 2. Creating host if it doesn't exist
+    # 3. Configuring host settings
+
+    echo "✓ Koji host $WORKER_NAME managed successfully"
+
+    cleanup_kinit
+}
+
+main "$@"
 
 # The end.
