@@ -83,9 +83,6 @@ RUN chmod +x /app/orch.sh
 # Expose port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=5 \
-    CMD /usr/local/bin/health-check.sh
 
 # Start hub service
 CMD ["/usr/local/bin/entrypoint.sh"]

@@ -58,6 +58,7 @@ log "Fetching hub keytabs..."
 # Fetching admin keytab
 /app/orch.sh checkout ${KOJI_ADMIN_KEYTAB} /etc/koji-hub/admin.keytab
 
+
 log "Creating SSL certificate..."
 /app/orch.sh checkout ${KOJI_HUB_CERT} /etc/pki/tls/certs/localhost.crt
 /app/orch.sh checkout ${KOJI_HUB_KEY} /etc/pki/tls/private/localhost.key
@@ -72,7 +73,5 @@ log "Starting startup.sh"
 su koji -c /usr/local/bin/startup.sh
 
 wait $HUB_PID
-log "Koji hub service stopped, exiting"
-
 
 # The end.

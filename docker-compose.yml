@@ -34,9 +34,12 @@ x-common-koji-admin: &common-koji-admin
   KOJI_ADMIN_NAME: ${KOJI_ADMIN_NAME:-hub-admin}
   KOJI_ADMIN_PRINC: ${KOJI_ADMIN_PRINC:-hub-admin@KOJI.BOX}
 
-x-common-koji-hub: &common-koji-hub
+x-common-koji-hub: &common-koji-hub-principals
   KOJI_HUB_PRINC: ${KOJI_HUB_PRINC:-HTTP/koji-hub.koji.box@KOJI.BOX}
   KOJI_NGINX_PRINC: ${KOJI_NGINX_PRINC:-HTTP/koji.box@KOJI.BOX}
+  ORCH_PRINC: ${ORCH_PRINC:-orch@KOJI.BOX}
+  KOJI_CLIENT_PRINC: ${KOJI_CLIENT_PRINC:-friend@KOJI.BOX}
+  KOJI_CLIENT_ADMIN_PRINC: ${KOJI_CLIENT_ADMIN_PRINC:-superfriend@KOJI.BOX}
 
 x-common-koji-hub-keytabs: &orch-koji-hub-keytabs
   KOJI_HUB_KEYTAB: ${KOJI_HUB_KEYTAB:-789490a1-e160-49c2-a1f0-e6db926c054e}
@@ -191,9 +194,11 @@ services:
            *common-koji,
            *common-kerberos,
            *common-orch-service,
+           *common-koji-hub-principals,
            *orch-koji-hub-keytabs,
            *orch-koji-hub-cert]
       KOJI_HUB_URL: https://koji-hub.koji.box/kojihub  # override to bypass nginx
+
     volumes:
       - koji_storage:/mnt/koji:Z
       - ./services/koji-hub/init.d:/var/lib/koji-hub/hub-init.d:Z

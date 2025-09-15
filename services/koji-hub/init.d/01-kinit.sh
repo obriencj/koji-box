@@ -1,7 +1,5 @@
 #! /bin/bash
 
-set -e
-
 echo "Performing kinit with admin keytab..."
 if kinit -kt /etc/koji-hub/admin.keytab ${KOJI_ADMIN_PRINC}; then
     echo "Successfully authenticated as $KOJI_ADMIN_PRINC"
