@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Fetch client principal from keytab service and kinit
-echo "Fetching client principal from keytab service..."
+# Fetch client principal from orch service and kinit
+echo "Fetching client principal from orch service..."
 
 # Configuration
-KEYTAB_SERVICE_URL="${KEYTAB_SERVICE_URL:-http://keytabs.koji.box:5000}"
+ORCH_SERVICE_URL="${ORCH_SERVICE_URL:-http://orch.koji.box:5000}"
 KRB5_REALM="${KRB5_REALM:-KOJI.BOX}"
 CLIENT_PRINCIPAL="${CLIENT_PRINCIPAL:-friend@${KRB5_REALM}}"
 KEYTAB_PATH="$HOME/.client.keytab"
@@ -16,9 +16,9 @@ envsubst < /etc/krb5.conf.template > "$KRB5_CONFIG"
 
 echo "✓ Kerberos configuration created"
 
-# Fetch keytab from keytab service
+# Fetch keytab from orch service using admin keytab (since no client-specific keytab exists)
 echo "Fetching keytab for principal: $CLIENT_PRINCIPAL"
-if ! curl "${KEYTAB_SERVICE_URL}/api/v1/principal/${CLIENT_PRINCIPAL}" -o "$KEYTAB_PATH"; then
+if ! /app/orch.sh checkout ${KOJI_ADMIN_KEYTAB} "$KEYTAB_PATH"; then
     echo "ERROR: Failed to fetch keytab for $CLIENT_PRINCIPAL"
     exit 1
 fi
@@ -30,7 +30,7 @@ chmod 600 "$KEYTAB_PATH"
 echo "Performing kinit with keytab..."
 if kinit -kt "$KEYTAB_PATH" "${CLIENT_PRINCIPAL}"; then
     echo "Successfully authenticated as $CLIENT_PRINCIPAL"
-    
+
     # Verify the ticket
     echo "Current Kerberos tickets:"
     klist

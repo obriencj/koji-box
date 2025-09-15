@@ -41,8 +41,8 @@ RUN pip install /mnt/koji-src/ && \
 COPY services/common/krb5.conf.template /etc/krb5.conf.template
 COPY services/common/koji.conf.template /etc/koji.conf.template
 
-COPY services/common/fetch.sh /app/fetch.sh
-RUN chmod +x /app/fetch.sh
+COPY services/common/orch.sh /app/orch.sh
+RUN chmod +x /app/orch.sh
 
 # Copy entrypoint script
 COPY services/koji-client/entrypoint.sh /app/entrypoint.sh

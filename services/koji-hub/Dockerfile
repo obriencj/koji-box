@@ -77,8 +77,8 @@ COPY services/koji-hub/httpd.conf.template /app/httpd.conf.template
 COPY services/common/krb5.conf.template /app/krb5.conf.template
 COPY services/common/koji.conf.template /app/koji.conf.template
 
-COPY services/common/fetch.sh /app/fetch.sh
-RUN chmod +x /app/fetch.sh
+COPY services/common/orch.sh /app/orch.sh
+RUN chmod +x /app/orch.sh
 
 # Expose port
 EXPOSE 8080

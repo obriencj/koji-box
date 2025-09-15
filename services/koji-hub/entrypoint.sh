@@ -50,12 +50,13 @@ if ! envsubst < /app/krb5.conf.template > /etc/krb5.conf; then
 fi
 log "✓ Kerberos configured"
 
-# Fetching hub keytab
-/app/fetch.sh principal ${KOJI_HUB_PRINC} /etc/koji-hub/koji-hub.keytab
-/app/fetch.sh principal ${KOJI_NGINX_PRINC} /etc/koji-hub/nginx.keytab
+# Fetching hub keytabs using orch.sh
+log "Fetching hub keytabs..."
+/app/orch.sh checkout ${KOJI_HUB_KEYTAB} /etc/koji-hub/koji-hub.keytab
+/app/orch.sh checkout ${KOJI_NGINX_KEYTAB} /etc/koji-hub/nginx.keytab
 
 # Fetching hub-admin keytab
-/app/fetch.sh principal ${KOJI_ADMIN_PRINC} /etc/koji-hub/admin.keytab
+/app/orch.sh checkout ${KOJI_ADMIN_KEYTAB} /etc/koji-hub/admin.keytab
 kinit -kt /etc/koji-hub/admin.keytab ${KOJI_ADMIN_PRINC}
 
 # Set proper ownership
@@ -64,8 +65,8 @@ chown -R koji:koji /etc/koji-hub /var/log/koji-hub /var/lib/koji-hub 2>/dev/null
 log "✓ File ownership set"
 
 log "Creating SSL certificate..."
-/app/fetch.sh cert koji-hub.koji.box /etc/pki/tls/certs/localhost.crt
-/app/fetch.sh key koji-hub.koji.box /etc/pki/tls/private/localhost.key
+/app/orch.sh checkout ${KOJI_HUB_CERT} /etc/pki/tls/certs/localhost.crt
+/app/orch.sh checkout ${KOJI_HUB_KEY} /etc/pki/tls/private/localhost.key
 log "✓ SSL certificate created"
 
 /sbin/httpd -DFOREGROUND &
