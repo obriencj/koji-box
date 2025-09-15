@@ -131,172 +131,180 @@ detect_ca_system() {
     return 0
 }
 
-# Check arguments
-if [ $# -lt 1 ]; then
-    usage
-fi
+function cmd_ca_install() {
+    # Detect CA system
+    if ! detect_ca_system; then
+        exit 1
+    fi
 
-command="$1"
-uuid="${2:-}"
-output_file="${3:-}"
+    # Check if we have the necessary permissions
+    if [ ! -w "$CA_ANCHORS_DIR" ]; then
+        echo -e "${RED}Error:${NC} No write permission to $CA_ANCHORS_DIR"
+        echo "This command requires root privileges. Please run with sudo:"
+        echo "  sudo $0 ca-install"
+        exit 1
+    fi
 
-# Handle commands
-case "$command" in
-    checkout)
-        if [ -z "$uuid" ]; then
-            echo -e "${RED}Error:${NC} checkout command requires <uuid>"
-            usage
-        fi
-        validate_uuid "$uuid"
-        echo -e "${BLUE}Checking out resource:${NC} $uuid"
-        if make_request "POST" "${ORCH_SERVICE_URL}/api/v2/resource/${uuid}" "$output_file"; then
-            echo -e "${GREEN}✓${NC} Resource checked out successfully"
-        else
-            echo -e "${RED}✗${NC} Failed to checkout resource"
-            exit 1
-        fi
-        ;;
-    release)
-        if [ -z "$uuid" ]; then
-            echo -e "${RED}Error:${NC} release command requires <uuid>"
-            usage
-        fi
-        validate_uuid "$uuid"
-        echo -e "${BLUE}Releasing resource:${NC} $uuid"
-        if make_request "DELETE" "${ORCH_SERVICE_URL}/api/v2/resource/${uuid}" ""; then
-            echo -e "${GREEN}✓${NC} Resource released successfully"
-        else
-            echo -e "${RED}✗${NC} Failed to release resource"
-            exit 1
-        fi
-        ;;
-    status)
-        if [ -z "$uuid" ]; then
-            echo -e "${RED}Error:${NC} status command requires <uuid>"
-            usage
-        fi
-        validate_uuid "$uuid"
-        echo -e "${BLUE}Getting status for resource:${NC} $uuid"
-        make_request "GET" "${ORCH_SERVICE_URL}/api/v2/resource/${uuid}/status" "" true
-        ;;
-    validate)
-        if [ -z "$uuid" ]; then
-            echo -e "${RED}Error:${NC} validate command requires <uuid>"
-            usage
-        fi
-        validate_uuid "$uuid"
-        echo -e "${BLUE}Validating access to resource:${NC} $uuid"
-        make_request "GET" "${ORCH_SERVICE_URL}/api/v2/resource/${uuid}/validate" "" true
-        ;;
-    health)
-        echo -e "${BLUE}Checking service health...${NC}"
-        if make_request "GET" "${ORCH_SERVICE_URL}/api/v2/status/health" "" true; then
-            echo -e "${GREEN}✓${NC} Orch service is healthy"
-        else
-            echo -e "${RED}✗${NC} Orch service is not healthy"
-            exit 1
-        fi
-        ;;
-    mappings)
-        echo -e "${BLUE}Getting resource mappings...${NC}"
-        make_request "GET" "${ORCH_SERVICE_URL}/api/v2/status/mappings" "" true
-        ;;
-    docs)
-        echo -e "${BLUE}Opening API documentation...${NC}"
-        make_request "GET" "${ORCH_SERVICE_URL}/api/v2/docs/" "" true
-        ;;
-    ca-cert)
-        echo -e "${BLUE}Getting CA certificate...${NC}"
-        if make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/certificate" "$output_file"; then
-            echo -e "${GREEN}✓${NC} CA certificate retrieved successfully"
-        else
-            echo -e "${RED}✗${NC} Failed to retrieve CA certificate"
-            exit 1
-        fi
-        ;;
-    ca-info)
-        echo -e "${BLUE}Getting CA certificate information...${NC}"
-        make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/info" "" true
-        ;;
-    ca-status)
-        echo -e "${BLUE}Getting CA status...${NC}"
-        make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/status" "" true
-        ;;
-    ca-install)
-        echo -e "${BLUE}Installing CA certificate to system trust store...${NC}"
+    # Create temporary file for CA certificate
+    local temp_ca_file=$(mktemp)
+    local ca_file="$CA_ANCHORS_DIR/orch-ca.crt"
 
-        # Detect CA system
-        if ! detect_ca_system; then
-            exit 1
-        fi
+    echo -e "${BLUE}Retrieving CA certificate...${NC}"
 
-        # Check if we have the necessary permissions
-        if [ ! -w "$CA_ANCHORS_DIR" ]; then
-            echo -e "${RED}Error:${NC} No write permission to $CA_ANCHORS_DIR"
-            echo "This command requires root privileges. Please run with sudo:"
-            echo "  sudo $0 ca-install"
-            exit 1
-        fi
-
-        # Create temporary file for CA certificate
-        local temp_ca_file=$(mktemp)
-        local ca_file="$CA_ANCHORS_DIR/orch-ca.crt"
-
-        echo -e "${BLUE}Retrieving CA certificate...${NC}"
-
-        # Get CA certificate
-        if ! make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/certificate" "$temp_ca_file"; then
-            echo -e "${RED}✗${NC} Failed to retrieve CA certificate"
-            rm -f "$temp_ca_file"
-            exit 1
-        fi
-
-        # Verify the certificate file is valid
-        if [ ! -s "$temp_ca_file" ]; then
-            echo -e "${RED}✗${NC} Retrieved CA certificate is empty"
-            rm -f "$temp_ca_file"
-            exit 1
-        fi
-
-        # Check if it's a valid certificate
-        if ! openssl x509 -in "$temp_ca_file" -text -noout >/dev/null 2>&1; then
-            echo -e "${RED}✗${NC} Retrieved file is not a valid certificate"
-            rm -f "$temp_ca_file"
-            exit 1
-        fi
-
-        # Copy certificate to anchors directory
-        echo -e "${BLUE}Installing CA certificate to $ca_file...${NC}"
-        if cp "$temp_ca_file" "$ca_file"; then
-            echo -e "${GREEN}✓${NC} CA certificate installed to $ca_file"
-        else
-            echo -e "${RED}✗${NC} Failed to install CA certificate"
-            rm -f "$temp_ca_file"
-            exit 1
-        fi
-
-        # Set appropriate permissions
-        chmod 644 "$ca_file"
-
-        # Update CA trust store
-        echo -e "${BLUE}Updating CA trust store...${NC}"
-        if $CA_UPDATE_CMD; then
-            echo -e "${GREEN}✓${NC} CA trust store updated successfully"
-        else
-            echo -e "${YELLOW}⚠${NC} CA certificate installed but trust store update failed"
-            echo "You may need to run: $CA_UPDATE_CMD"
-        fi
-
-        # Clean up temporary file
+    # Get CA certificate
+    if ! make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/certificate" "$temp_ca_file"; then
+        echo -e "${RED}✗${NC} Failed to retrieve CA certificate"
         rm -f "$temp_ca_file"
+        exit 1
+    fi
 
-        echo -e "${GREEN}✓${NC} CA certificate installation completed"
-        echo "The orch CA certificate is now trusted by the system"
-        ;;
-    *)
-        echo -e "${RED}Error:${NC} Unknown command '$command'"
+    # Verify the certificate file is valid
+    if [ ! -s "$temp_ca_file" ]; then
+        echo -e "${RED}✗${NC} Retrieved CA certificate is empty"
+        rm -f "$temp_ca_file"
+        exit 1
+    fi
+
+    # Check if it's a valid certificate
+    if ! openssl x509 -in "$temp_ca_file" -text -noout >/dev/null 2>&1; then
+        echo -e "${RED}✗${NC} Retrieved file is not a valid certificate"
+        rm -f "$temp_ca_file"
+        exit 1
+    fi
+
+    # Copy certificate to anchors directory
+    echo -e "${BLUE}Installing CA certificate to $ca_file...${NC}"
+    if cp "$temp_ca_file" "$ca_file"; then
+        echo -e "${GREEN}✓${NC} CA certificate installed to $ca_file"
+    else
+        echo -e "${RED}✗${NC} Failed to install CA certificate"
+        rm -f "$temp_ca_file"
+        exit 1
+    fi
+
+    # Set appropriate permissions
+    chmod 644 "$ca_file"
+
+    # Update CA trust store
+    echo -e "${BLUE}Updating CA trust store...${NC}"
+    if $CA_UPDATE_CMD; then
+        echo -e "${GREEN}✓${NC} CA trust store updated successfully"
+    else
+        echo -e "${YELLOW}⚠${NC} CA certificate installed but trust store update failed"
+        echo "You may need to run: $CA_UPDATE_CMD"
+    fi
+
+    # Clean up temporary file
+    rm -f "$temp_ca_file"
+
+    echo -e "${GREEN}✓${NC} CA certificate installation completed"
+    echo "The orch CA certificate is now trusted by the system"
+}
+
+
+function main() {
+    # Check arguments
+    if [ $# -lt 1 ]; then
         usage
-        ;;
-esac
+    fi
+
+    command="$1"
+    uuid="${2:-}"
+    output_file="${3:-}"
+
+    # Handle commands
+    case "$command" in
+        checkout)
+            if [ -z "$uuid" ]; then
+                echo -e "${RED}Error:${NC} checkout command requires <uuid>"
+                usage
+            fi
+            validate_uuid "$uuid"
+            echo -e "${BLUE}Checking out resource:${NC} $uuid"
+            if make_request "POST" "${ORCH_SERVICE_URL}/api/v2/resource/${uuid}" "$output_file"; then
+                echo -e "${GREEN}✓${NC} Resource checked out successfully"
+            else
+                echo -e "${RED}✗${NC} Failed to checkout resource"
+                exit 1
+            fi
+            ;;
+        release)
+            if [ -z "$uuid" ]; then
+                echo -e "${RED}Error:${NC} release command requires <uuid>"
+                usage
+            fi
+            validate_uuid "$uuid"
+            echo -e "${BLUE}Releasing resource:${NC} $uuid"
+            if make_request "DELETE" "${ORCH_SERVICE_URL}/api/v2/resource/${uuid}" ""; then
+                echo -e "${GREEN}✓${NC} Resource released successfully"
+            else
+                echo -e "${RED}✗${NC} Failed to release resource"
+                exit 1
+            fi
+            ;;
+        status)
+            if [ -z "$uuid" ]; then
+                echo -e "${RED}Error:${NC} status command requires <uuid>"
+                usage
+            fi
+            validate_uuid "$uuid"
+            echo -e "${BLUE}Getting status for resource:${NC} $uuid"
+            make_request "GET" "${ORCH_SERVICE_URL}/api/v2/resource/${uuid}/status" "" true
+            ;;
+        validate)
+            if [ -z "$uuid" ]; then
+                echo -e "${RED}Error:${NC} validate command requires <uuid>"
+                usage
+            fi
+            validate_uuid "$uuid"
+            echo -e "${BLUE}Validating access to resource:${NC} $uuid"
+            make_request "GET" "${ORCH_SERVICE_URL}/api/v2/resource/${uuid}/validate" "" true
+            ;;
+        health)
+            echo -e "${BLUE}Checking service health...${NC}"
+            if make_request "GET" "${ORCH_SERVICE_URL}/api/v2/status/health" "" true; then
+                echo -e "${GREEN}✓${NC} Orch service is healthy"
+            else
+                echo -e "${RED}✗${NC} Orch service is not healthy"
+                exit 1
+            fi
+            ;;
+        mappings)
+            echo -e "${BLUE}Getting resource mappings...${NC}"
+            make_request "GET" "${ORCH_SERVICE_URL}/api/v2/status/mappings" "" true
+            ;;
+        docs)
+            echo -e "${BLUE}Opening API documentation...${NC}"
+            make_request "GET" "${ORCH_SERVICE_URL}/api/v2/docs/" "" true
+            ;;
+        ca-cert)
+            echo -e "${BLUE}Getting CA certificate...${NC}"
+            if make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/certificate" "$output_file"; then
+                echo -e "${GREEN}✓${NC} CA certificate retrieved successfully"
+            else
+                echo -e "${RED}✗${NC} Failed to retrieve CA certificate"
+                exit 1
+            fi
+            ;;
+        ca-info)
+            echo -e "${BLUE}Getting CA certificate information...${NC}"
+            make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/info" "" true
+            ;;
+        ca-status)
+            echo -e "${BLUE}Getting CA status...${NC}"
+            make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/status" "" true
+            ;;
+        ca-install)
+            echo -e "${BLUE}Installing CA certificate to system trust store...${NC}"
+            cmd_ca_install
+            ;;
+        *)
+            echo -e "${RED}Error:${NC} Unknown command '$command'"
+            usage
+            ;;
+    esac
+}
+
+main "$@"
 
 # The end.
