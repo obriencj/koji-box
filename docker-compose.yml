@@ -179,14 +179,14 @@ services:
            *orch-koji-hub-cert,
            *orch-koji-nginx-cert]
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${PODMAN_SOCKET:-/var/run/podman.sock}:/var/run/docker.sock:ro
       - ./data/orch:/mnt/data:Z
     networks:
       koji-network:
         aliases:
           - orch.koji.box
     healthcheck:
-      test: ["CMD-SHELL", "/app/health-check.sh"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health >/dev/null 2>&1"]
       interval: 10s
       timeout: 10s
       retries: 3
