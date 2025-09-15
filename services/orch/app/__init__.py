@@ -4,12 +4,16 @@ Orch Service - Resource Management System
 Main application package
 """
 
+import logging
+from os import getenv
+
 from flask import Flask
+
+from .common.ca_certificate_manager import CACertificateManager
+from .common.checkout_manager import CheckoutManager
+from .common.container_client import ContainerClient
 from .common.database import DatabaseManager
 from .common.resource_manager import ResourceManager
-from .common.container_client import ContainerClient
-from .common.checkout_manager import CheckoutManager
-from .common.ca_certificate_manager import CACertificateManager
 
 def create_app():
     """Create and configure the Flask application"""
@@ -33,6 +37,11 @@ def create_app():
     app.register_blueprint(v2_bp, url_prefix='/api/v2')
 
     return app
+
+log_level = getenv('ORCH_LOG_LEVEL', 'INFO').upper()
+logging.basicConfig(level=getattr(logging, log_level))
+
+logging.info(f"Starting Orch Service with log level: {log_level}")
 
 app = create_app()
 
