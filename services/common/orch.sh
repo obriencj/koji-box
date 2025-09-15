@@ -45,19 +45,19 @@ make_request() {
     local url="$2"
     local output_file="$3"
     local show_headers="${4:-false}"
-    
+
     local curl_opts=(-sS -X "$method")
-    
+
     if [ "$show_headers" = "true" ]; then
         curl_opts+=(-i)
     fi
-    
+
     if [ -n "$output_file" ]; then
         # Create output directory if needed
         mkdir -p "$(dirname "$output_file")"
         curl_opts+=(-o "$output_file")
     fi
-    
+
     if curl "${curl_opts[@]}" "$url"; then
         if [ -n "$output_file" ]; then
             echo -e "${GREEN}✓${NC} Resource saved to $output_file"
