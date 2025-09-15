@@ -177,4 +177,5 @@ When working on this project:
 - **CRITICAL**: All git commands must be run through the git_operations subagent
 - **MANDATORY COMMIT FORMAT**: Always use `git commit -F - << 'EOF'` for all commits
 - **NO EXCEPTIONS**: Never use `git commit -F "message"` or other commit formats
+- **FORBIDDEN**: You are forbidden from using `git revert` commands
 - **REFERENCE**: See `.cursor/subagents/git_operations.md` for complete guidelines

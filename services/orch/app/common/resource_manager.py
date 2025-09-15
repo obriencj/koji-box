@@ -14,7 +14,6 @@ from typing import Dict, Optional, Tuple
 from urllib.parse import quote_plus as urlquote
 
 from .database import DatabaseManager
-from ...common.git_command_validator import safe_subprocess_run
 
 logger = logging.getLogger(__name__)
 

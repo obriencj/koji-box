@@ -91,7 +91,7 @@ validate_uuid() {
 detect_ca_system() {
     local anchors_dir=""
     local update_cmd=""
-    
+
     # Check for different CA trust store systems
     if [ -d "/usr/local/share/ca-certificates" ]; then
         # Debian/Ubuntu system
@@ -121,10 +121,10 @@ detect_ca_system() {
         echo "  - OpenSUSE: /usr/share/pki/trust/anchors"
         return 1
     fi
-    
+
     echo "Anchors directory: $anchors_dir"
     echo "Update command: $update_cmd"
-    
+
     # Export variables for use by caller
     export CA_ANCHORS_DIR="$anchors_dir"
     export CA_UPDATE_CMD="$update_cmd"
@@ -224,12 +224,12 @@ case "$command" in
         ;;
     ca-install)
         echo -e "${BLUE}Installing CA certificate to system trust store...${NC}"
-        
+
         # Detect CA system
         if ! detect_ca_system; then
             exit 1
         fi
-        
+
         # Check if we have the necessary permissions
         if [ ! -w "$CA_ANCHORS_DIR" ]; then
             echo -e "${RED}Error:${NC} No write permission to $CA_ANCHORS_DIR"
@@ -237,34 +237,34 @@ case "$command" in
             echo "  sudo $0 ca-install"
             exit 1
         fi
-        
+
         # Create temporary file for CA certificate
         local temp_ca_file=$(mktemp)
         local ca_file="$CA_ANCHORS_DIR/orch-ca.crt"
-        
+
         echo -e "${BLUE}Retrieving CA certificate...${NC}"
-        
+
         # Get CA certificate
         if ! make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/certificate" "$temp_ca_file"; then
             echo -e "${RED}✗${NC} Failed to retrieve CA certificate"
             rm -f "$temp_ca_file"
             exit 1
         fi
-        
+
         # Verify the certificate file is valid
         if [ ! -s "$temp_ca_file" ]; then
             echo -e "${RED}✗${NC} Retrieved CA certificate is empty"
             rm -f "$temp_ca_file"
             exit 1
         fi
-        
+
         # Check if it's a valid certificate
         if ! openssl x509 -in "$temp_ca_file" -text -noout >/dev/null 2>&1; then
             echo -e "${RED}✗${NC} Retrieved file is not a valid certificate"
             rm -f "$temp_ca_file"
             exit 1
         fi
-        
+
         # Copy certificate to anchors directory
         echo -e "${BLUE}Installing CA certificate to $ca_file...${NC}"
         if cp "$temp_ca_file" "$ca_file"; then
@@ -274,10 +274,10 @@ case "$command" in
             rm -f "$temp_ca_file"
             exit 1
         fi
-        
+
         # Set appropriate permissions
         chmod 644 "$ca_file"
-        
+
         # Update CA trust store
         echo -e "${BLUE}Updating CA trust store...${NC}"
         if $CA_UPDATE_CMD; then
@@ -286,10 +286,10 @@ case "$command" in
             echo -e "${YELLOW}⚠${NC} CA certificate installed but trust store update failed"
             echo "You may need to run: $CA_UPDATE_CMD"
         fi
-        
+
         # Clean up temporary file
         rm -f "$temp_ca_file"
-        
+
         echo -e "${GREEN}✓${NC} CA certificate installation completed"
         echo "The orch CA certificate is now trusted by the system"
         ;;
