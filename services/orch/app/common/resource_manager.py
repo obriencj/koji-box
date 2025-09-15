@@ -14,14 +14,16 @@ from typing import Dict, Optional, Tuple
 from urllib.parse import quote_plus as urlquote
 
 from .database import DatabaseManager
+from ...common.git_command_validator import safe_subprocess_run
 
 logger = logging.getLogger(__name__)
 
 class ResourceManager:
     """Manages resource creation and lifecycle"""
 
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager: DatabaseManager, ca_manager=None):
         self.db = db_manager
+        self.ca_manager = ca_manager
 
         # Configuration from environment
         self.krb5_realm = os.getenv('KRB5_REALM', 'KOJI.BOX')
@@ -78,7 +80,7 @@ class ResourceManager:
                 '-w', self.kadmin_pass,
                 '-q', f'addprinc -randkey {principal_name}'
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 logger.error(f"Failed to create principal {principal_name}: {result.stderr}")
                 return False
@@ -96,7 +98,7 @@ class ResourceManager:
                 '-w', self.kadmin_pass,
                 '-q', f'getprinc {principal_name}'
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=30)
             if result.stderr and "Principal does not exist" in result.stderr:
                 return False
             return result.returncode == 0
@@ -118,7 +120,7 @@ class ResourceManager:
                 '-w', self.kadmin_pass,
                 '-q', f'ktadd -k {keytab_path} {principal_name}'
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 logger.error(f"Failed to create keytab for {principal_name}: {result.stderr}")
                 return None
@@ -132,6 +134,21 @@ class ResourceManager:
 
     def create_certificate(self, cn: str) -> Tuple[Optional[Path], Optional[Path]]:
         """Create SSL certificate and private key"""
+        try:
+            # If CA manager is available, use CA-signed certificates
+            if self.ca_manager:
+                logger.info(f"Creating CA-signed certificate for {cn}")
+                return self.ca_manager.create_certificate_signed_by_ca(cn)
+            else:
+                # Fallback to self-signed certificates for backward compatibility
+                logger.info(f"Creating self-signed certificate for {cn} (no CA manager)")
+                return self._create_self_signed_certificate(cn)
+        except Exception as e:
+            logger.error(f"Error creating certificate for {cn}: {e}")
+            return None, None
+
+    def _create_self_signed_certificate(self, cn: str) -> Tuple[Optional[Path], Optional[Path]]:
+        """Create self-signed SSL certificate and private key (fallback method)"""
         try:
             safe_cn = urlquote(cn)
             key_path = self.certs_dir / f"{safe_cn}.key"
@@ -149,7 +166,7 @@ class ResourceManager:
                 '-subj', f"/C={self.cert_country}/ST={self.cert_state}/L={self.cert_location}/O={self.cert_org}/OU={self.cert_org_unit}/CN={cn}"
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 logger.error(f"Failed to create certificate for {cn}: {result.stderr}")
                 return None, None
@@ -157,17 +174,17 @@ class ResourceManager:
             key_path.chmod(0o644)
             crt_path.chmod(0o644)
 
-            logger.info(f"Created certificate for {cn} at {crt_path} and key at {key_path}")
+            logger.info(f"Created self-signed certificate for {cn} at {crt_path} and key at {key_path}")
             return key_path, crt_path
         except Exception as e:
-            logger.error(f"Error creating certificate for {cn}: {e}")
+            logger.error(f"Error creating self-signed certificate for {cn}: {e}")
             return None, None
 
     def manage_koji_host(self, worker_name: str) -> bool:
         """Manage Koji host using the shell script"""
         try:
             cmd = ['/app/manage-koji-host.sh', worker_name]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=60)
             if result.returncode != 0:
                 logger.error(f"Failed to manage Koji host {worker_name}: {result.stderr}")
                 return False

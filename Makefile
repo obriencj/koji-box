@@ -63,7 +63,7 @@ up: ## Start all services
 	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up -d
 	@echo -e "$(GREEN)Koji environment started$(NC)"
-	
+
 launch: ## Start all services in the foreground
 	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up --build

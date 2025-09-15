@@ -9,7 +9,7 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
 ### ✅ Working Services
 - **PostgreSQL Database** - Backend data storage
 - **KDC (Kerberos)** - Authentication service with realm KOJI.BOX
-- **Keytab Service** - REST API for principal and worker management
+- **Orch Service** - REST API for resource management with CA certificate support
 - **Koji Hub** - Central coordination service
 - **Koji Client** - CLI interface for testing
 
@@ -39,7 +39,7 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
 3. **Access services**:
    - **Working Services**:
      - Koji Hub: http://koji-hub.koji.box:80 (or via nginx when ready)
-     - Keytab Service: http://keytabs.koji.box:5000
+     - Orch Service: http://orch.koji.box:5000 (resource management with CA support)
      - KDC: kdc.koji.box:88 (Kerberos)
      - PostgreSQL: postgres.koji.box:5432
    - **In Progress** (coming soon):
@@ -71,7 +71,7 @@ koji-boxed/
 │   ├── kdc/                         # ✅ Kerberos KDC service
 │   ├── koji-hub/                    # ✅ Koji Hub service
 │   ├── koji-client/                 # ✅ Koji CLI client
-│   ├── keytab-service/              # ✅ Keytab management service
+│   ├── orch/                        # ✅ Orch resource management service
 │   ├── postgres/                    # ✅ PostgreSQL database
 │   ├── koji-worker/                 # 📋 Planned: Build workers
 │   ├── koji-web/                    # 🚧 In Progress: Web interface
@@ -116,30 +116,62 @@ koji-boxed/
 - `make list-principals` - List Kerberos principals
 - `make test-kerberos` - Test Kerberos authentication
 
-### Keytab Service
+### Orch Service
 
-- `make logs-keytab-service` - Show logs for Keytab Service
+- `make logs-orch-service` - Show logs for Orch Service
 
-The Keytab Service is an internal Flask REST application that manages Koji principals and worker hosts. It provides:
+The Orch Service is a comprehensive resource management system that provides secure, container-based access control for Koji infrastructure resources. It includes:
 
 - **Principal Management**: Creates principals in the KDC and generates keytabs
 - **Worker Registration**: Registers worker hosts with the Koji hub using admin authentication
-- **Static File Serving**: Serves principal keytabs from the shared data directory
-- **Koji CLI Integration**: Automatically installs and configures Koji client tools at startup
+- **Certificate Authority (CA)**: Manages its own CA for signing SSL certificates
+- **SSL Certificate Management**: Creates and manages SSL certificates signed by the CA
+- **Container-based Security**: IP-based container identification and resource checkout system
+- **UUID-based Access**: Resources accessed via UUIDs for enhanced security
 
-**API Endpoints:**
+**V2 API Endpoints (Recommended):**
+- `POST /api/v2/resource/<uuid>` - Checkout a resource by UUID
+- `DELETE /api/v2/resource/<uuid>` - Release a resource by UUID
+- `GET /api/v2/resource/<uuid>/status` - Get resource status
+- `GET /api/v2/resource/<uuid>/validate` - Validate access
+- `GET /api/v2/ca/certificate` - Get CA certificate (public key only)
+- `GET /api/v2/ca/info` - Get CA certificate information
+- `GET /api/v2/ca/status` - Get CA status
+- `GET /api/v2/status/health` - Health check endpoint
+
+**V1 API Endpoints (Legacy):**
 - `GET /api/v1/principal/<principal_name>` - Get or create a principal and return its keytab
 - `GET /api/v1/worker/<worker_name>` - Get or create a worker host and return its keytab
-- `GET /principals/<filename>` - Serve principal keytab files statically
-- `GET /health` - Health check endpoint
+- `GET /api/v1/cert/<cn>` - Get SSL certificate
+- `GET /api/v1/cert/key/<cn>` - Get SSL private key
 
-**Usage:**
+**Orch CLI Usage:**
 ```bash
-# Get a principal keytab
-curl -o my-principal.keytab http://keytabs.koji.box:80/api/v1/principal/my-principal
+# Using the orch.sh script
+./services/common/orch.sh checkout <uuid> [file]     # Checkout a resource
+./services/common/orch.sh release <uuid>             # Release a resource
+./services/common/orch.sh status <uuid>              # Get resource status
+./services/common/orch.sh ca-cert [file]             # Get CA certificate
+./services/common/orch.sh ca-info                    # Get CA information
+./services/common/orch.sh ca-status                  # Get CA status
+./services/common/orch.sh ca-install                 # Install CA to system trust store
+./services/common/orch.sh health                     # Check service health
+./services/common/orch.sh docs                       # Show API documentation
+```
 
-# Get a worker keytab and register with hub
-curl -o worker.keytab http://keytabs.koji.box:80/api/v1/worker/worker-1
+**Direct API Usage:**
+```bash
+# Get a principal keytab (V1 API)
+curl -o my-principal.keytab http://orch.koji.box:5000/api/v1/principal/my-principal
+
+# Get a worker keytab and register with hub (V1 API)
+curl -o worker.keytab http://orch.koji.box:5000/api/v1/worker/worker-1
+
+# Get CA certificate
+curl -o ca.crt http://orch.koji.box:5000/api/v2/ca/certificate
+
+# Install CA certificate to system trust store
+sudo ./services/common/orch.sh ca-install
 ```
 
 ### Maintenance
@@ -265,10 +297,10 @@ make clean-data
    make shell-kdc
    ```
 
-4. **Keytab service issues**:
+4. **Orch service issues**:
    ```bash
-   make logs-keytab-service
-   curl http://keytabs.koji.box:5000/health
+   make logs-orch-service
+   curl http://orch.koji.box:5000/api/v2/status/health
    ```
 
 5. **Build failures**:
@@ -280,7 +312,7 @@ make clean-data
 ### Service-Specific Troubleshooting
 
 **Working Services:**
-- PostgreSQL, KDC, Keytab Service, Koji Hub, Koji Client are fully functional
+- PostgreSQL, KDC, Orch Service, Koji Hub, Koji Client are fully functional
 - Check logs with `make logs-<service>` for specific issues
 
 **In Progress Services:**
@@ -323,7 +355,7 @@ postgres → koji-hub ←─── koji-client
     ↓         ↓
    kdc ←──────┘
     ↓
-keytab-service ←─── koji-client
+orch-service ←─── koji-client
 ```
 
 **Planned Full Architecture:**
@@ -334,7 +366,7 @@ postgres → koji-hub → koji-worker
     ↓
 koji-web ←─── nginx (main entry point)
     ↓
-keytab-service ←─── test-runner
+orch-service ←─── test-runner
 ```
 
 ### Nginx Routing (In Progress)
@@ -362,11 +394,11 @@ The nginx proxy will provide a unified entry point with the following planned ro
 - **Access**: `kdc.koji.box:88`
 - **Features**: Service principal management, admin user creation
 
-### ✅ Keytab Service
+### ✅ Orch Service
 - **Status**: Fully functional
-- **Purpose**: REST API for principal and worker management
-- **Access**: `keytabs.koji.box:5000`
-- **Features**: Principal creation, keytab generation, worker registration
+- **Purpose**: Comprehensive resource management system with CA certificate support
+- **Access**: `orch.koji.box:5000`
+- **Features**: Principal creation, keytab generation, worker registration, CA certificate management, SSL certificate signing
 
 ### ✅ Koji Hub
 - **Status**: Fully functional

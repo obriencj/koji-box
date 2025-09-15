@@ -8,6 +8,7 @@ from flask import Blueprint
 from .resource import resource_bp
 from .status import status_bp
 from .docs import docs_bp
+from .ca import ca_bp
 
 # Create main v2 blueprint
 bp = Blueprint('v2', __name__)
@@ -16,5 +17,6 @@ bp = Blueprint('v2', __name__)
 bp.register_blueprint(resource_bp, url_prefix='/resource')
 bp.register_blueprint(status_bp, url_prefix='/status')
 bp.register_blueprint(docs_bp, url_prefix='/docs')
+bp.register_blueprint(ca_bp, url_prefix='/ca')
 
 # The end.

@@ -144,6 +144,66 @@ def api_documentation():
                     }
                 }
             },
+            'ca': {
+                'certificate': {
+                    'method': 'GET',
+                    'path': '/api/v2/ca/certificate',
+                    'description': 'Get CA certificate (public key only) - accessible without UUID or checkout',
+                    'authentication': 'None required - public endpoint',
+                    'responses': {
+                        '200': {
+                            'description': 'CA certificate file downloaded',
+                            'content_type': 'application/x-x509-ca-cert'
+                        },
+                        '500': {
+                            'description': 'Internal server error or CA creation failed'
+                        }
+                    },
+                    'example': {
+                        'request': 'GET /api/v2/ca/certificate',
+                        'response': 'Binary CA certificate file (ca.crt)'
+                    }
+                },
+                'info': {
+                    'method': 'GET',
+                    'path': '/api/v2/ca/info',
+                    'description': 'Get CA certificate information - accessible without UUID or checkout',
+                    'authentication': 'None required - public endpoint',
+                    'responses': {
+                        '200': {
+                            'description': 'CA certificate information'
+                        },
+                        '404': {
+                            'description': 'CA certificate not found'
+                        },
+                        '500': {
+                            'description': 'Internal server error'
+                        }
+                    },
+                    'example': {
+                        'request': 'GET /api/v2/ca/info',
+                        'response': '{"ca_info": {"exists": true, "cert_path": "/mnt/data/ca/ca.crt", "cert_info": "..."}}'
+                    }
+                },
+                'status': {
+                    'method': 'GET',
+                    'path': '/api/v2/ca/status',
+                    'description': 'Get CA status - accessible without UUID or checkout',
+                    'authentication': 'None required - public endpoint',
+                    'responses': {
+                        '200': {
+                            'description': 'CA status information'
+                        },
+                        '500': {
+                            'description': 'Internal server error'
+                        }
+                    },
+                    'example': {
+                        'request': 'GET /api/v2/ca/status',
+                        'response': '{"ca_exists": true, "status": "available", "ca_directory": "/mnt/data/ca"}'
+                    }
+                }
+            },
             'status': {
                 'health': {
                     'method': 'GET',
@@ -257,6 +317,39 @@ print(response.json())
 import requests
 
 response = requests.get('http://orch-service:5000/api/v2/resource/a1b2c3d4-e5f6-7890-abcd-ef1234567890/validate')
+print(response.json())
+'''
+            },
+            'get_ca_certificate': {
+                'description': 'Get CA certificate (public key only)',
+                'curl': 'curl http://orch-service:5000/api/v2/ca/certificate -o ca.crt',
+                'python': '''
+import requests
+
+response = requests.get('http://orch-service:5000/api/v2/ca/certificate')
+if response.status_code == 200:
+    with open('ca.crt', 'wb') as f:
+        f.write(response.content)
+    print("CA certificate saved as ca.crt")
+'''
+            },
+            'get_ca_info': {
+                'description': 'Get CA certificate information',
+                'curl': 'curl http://orch-service:5000/api/v2/ca/info',
+                'python': '''
+import requests
+
+response = requests.get('http://orch-service:5000/api/v2/ca/info')
+print(response.json())
+'''
+            },
+            'get_ca_status': {
+                'description': 'Get CA status',
+                'curl': 'curl http://orch-service:5000/api/v2/ca/status',
+                'python': '''
+import requests
+
+response = requests.get('http://orch-service:5000/api/v2/ca/status')
 print(response.json())
 '''
             }

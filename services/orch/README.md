@@ -18,8 +18,14 @@ The Orch service is a comprehensive resource management system that provides sec
 
 ### 🔄 Backward Compatibility
 - **V1 API preserved** - Existing keytab-service functionality
-- **V2 API enhanced** - New UUID-based system
+- **V2 API enhanced** - New UUID-based system with CA certificate support
 - **Gradual migration** - Both APIs can run simultaneously
+
+### 🔐 Certificate Authority (CA) Support
+- **Self-managed CA** - Creates and manages its own root CA certificate
+- **CA-signed certificates** - All SSL certificates are signed by the CA
+- **Public CA access** - CA certificate accessible without authentication
+- **System integration** - Easy installation to system trust stores
 
 ## Quick Start
 
@@ -53,6 +59,11 @@ curl http://orch.koji.box:5000/api/v2/docs/
 - `DELETE /api/v2/resource/<uuid>` - Release a resource
 - `GET /api/v2/resource/<uuid>/status` - Get resource status
 - `GET /api/v2/resource/<uuid>/validate` - Validate access
+
+#### Certificate Authority (CA)
+- `GET /api/v2/ca/certificate` - Get CA certificate (public key only)
+- `GET /api/v2/ca/info` - Get CA certificate information
+- `GET /api/v2/ca/status` - Get CA status
 
 #### Status and Information
 - `GET /api/v2/status/health` - Health check
@@ -93,6 +104,17 @@ curl http://orch.koji.box:5000/api/v2/docs/
 - `KOJI_NGINX_CERT` - Nginx SSL certificate UUID
 - `KOJI_NGINX_CERT_CN` - Nginx certificate CN
 - `KOJI_NGINX_KEY` - Nginx SSL private key UUID
+
+#### CA Certificate Configuration
+- `CA_CERT_DAYS` - CA certificate validity period in days (default: 3650)
+- `CERT_DAYS` - Regular certificate validity period in days (default: 365)
+- `CA_CN` - CA certificate Common Name (default: koji-box-ca)
+- `CA_EMAIL` - CA certificate email address (default: admin@koji.box)
+- `CERT_COUNTRY` - Certificate country code (default: US)
+- `CERT_STATE` - Certificate state/province (default: NC)
+- `CERT_LOCATION` - Certificate locality (default: Raleigh)
+- `CERT_ORG` - Certificate organization (default: Koji Box)
+- `CERT_ORG_UNIT` - Certificate organizational unit (default: Certificate Authority)
 
 ### Docker Compose Integration
 
@@ -142,6 +164,32 @@ curl http://orch.koji.box:5000/api/v2/resource/a1b2c3d4-e5f6-7890-abcd-ef1234567
 curl http://orch.koji.box:5000/api/v2/resource/a1b2c3d4-e5f6-7890-abcd-ef1234567890/validate
 ```
 
+### CA Certificate Management
+```bash
+# Get CA certificate
+curl -o ca.crt http://orch.koji.box:5000/api/v2/ca/certificate
+
+# Get CA information
+curl http://orch.koji.box:5000/api/v2/ca/info
+
+# Get CA status
+curl http://orch.koji.box:5000/api/v2/ca/status
+```
+
+### Using the Orch CLI
+```bash
+# Using the orch.sh script for easier management
+./services/common/orch.sh checkout <uuid> [file]     # Checkout a resource
+./services/common/orch.sh release <uuid>             # Release a resource
+./services/common/orch.sh status <uuid>              # Get resource status
+./services/common/orch.sh ca-cert [file]             # Get CA certificate
+./services/common/orch.sh ca-info                    # Get CA information
+./services/common/orch.sh ca-status                  # Get CA status
+./services/common/orch.sh ca-install                 # Install CA to system trust store
+./services/common/orch.sh health                     # Check service health
+./services/common/orch.sh docs                       # Show API documentation
+```
+
 ## Migration from keytab-service
 
 ### 1. Run Migration Script
@@ -170,7 +218,8 @@ Add resource UUIDs to your container environment variables.
 ### Components
 
 - **Database Manager** - SQLite database for resource tracking
-- **Resource Manager** - Kerberos and SSL resource creation
+- **Resource Manager** - Kerberos and SSL resource creation with CA integration
+- **CA Certificate Manager** - Certificate Authority management and certificate signing
 - **Container Client** - Docker/Podman integration
 - **Checkout Manager** - Resource checkout/release logic
 - **Validators** - Input validation and security checks
@@ -188,8 +237,17 @@ Add resource UUIDs to your container environment variables.
 
 - **Principal** - Kerberos principal keytabs
 - **Worker** - Koji worker keytabs with host registration
-- **Cert** - SSL certificates
+- **Cert** - SSL certificates (CA-signed)
 - **Key** - SSL private keys
+
+### CA Certificate Features
+
+- **Automatic CA Creation** - Creates root CA certificate on first certificate request
+- **CA-signed Certificates** - All SSL certificates are signed by the CA
+- **Public CA Access** - CA certificate available without authentication
+- **System Integration** - Easy installation to system trust stores via `ca-install` command
+- **Long-term CA** - CA certificate valid for 10 years by default
+- **Secure Storage** - CA private key stored with restrictive permissions (600)
 
 ## Development
 

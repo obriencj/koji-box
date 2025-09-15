@@ -9,6 +9,7 @@ from .common.database import DatabaseManager
 from .common.resource_manager import ResourceManager
 from .common.container_client import ContainerClient
 from .common.checkout_manager import CheckoutManager
+from .common.ca_certificate_manager import CACertificateManager
 
 def create_app():
     """Create and configure the Flask application"""
@@ -16,7 +17,8 @@ def create_app():
 
     # Initialize components
     app.db_manager = DatabaseManager()
-    app.resource_manager = ResourceManager(app.db_manager)
+    app.ca_manager = CACertificateManager()
+    app.resource_manager = ResourceManager(app.db_manager, app.ca_manager)
     app.container_client = ContainerClient()
     app.checkout_manager = CheckoutManager(app.db_manager, app.resource_manager, app.container_client)
 

@@ -26,6 +26,10 @@ usage() {
     echo "  health                     Check service health"
     echo "  mappings                   List all resource mappings"
     echo "  docs                       Show API documentation"
+    echo "  ca-cert [file]             Get CA certificate (public key only)"
+    echo "  ca-info                    Get CA certificate information"
+    echo "  ca-status                  Get CA status"
+    echo "  ca-install                 Install CA certificate to system trust store"
     echo ""
     echo "Environment Variables:"
     echo "  ORCH_SERVICE_URL           Orch service URL (default: http://orch.koji.box:5000)"
@@ -36,6 +40,10 @@ usage() {
     echo "  $0 release a1b2c3d4-e5f6-7890-abcd-ef1234567890"
     echo "  $0 health"
     echo "  $0 mappings"
+    echo "  $0 ca-cert /tmp/ca.crt"
+    echo "  $0 ca-info"
+    echo "  $0 ca-status"
+    echo "  $0 ca-install"
     exit 1
 }
 
@@ -77,6 +85,50 @@ validate_uuid() {
         echo "Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         exit 1
     fi
+}
+
+# Function to detect CA anchors directory and update command
+detect_ca_system() {
+    local anchors_dir=""
+    local update_cmd=""
+    
+    # Check for different CA trust store systems
+    if [ -d "/usr/local/share/ca-certificates" ]; then
+        # Debian/Ubuntu system
+        anchors_dir="/usr/local/share/ca-certificates"
+        update_cmd="update-ca-certificates"
+        echo "Detected Debian/Ubuntu CA system"
+    elif [ -d "/etc/pki/ca-trust/source/anchors" ]; then
+        # RHEL/CentOS/Fedora system
+        anchors_dir="/etc/pki/ca-trust/source/anchors"
+        update_cmd="update-ca-trust extract"
+        echo "Detected RHEL/CentOS/Fedora CA system"
+    elif [ -d "/usr/share/pki/trust/anchors" ]; then
+        # OpenSUSE system
+        anchors_dir="/usr/share/pki/trust/anchors"
+        update_cmd="update-ca-trust extract"
+        echo "Detected OpenSUSE CA system"
+    elif [ -d "/etc/ssl/certs" ] && command -v update-ca-certificates >/dev/null 2>&1; then
+        # Alternative Debian/Ubuntu system
+        anchors_dir="/usr/local/share/ca-certificates"
+        update_cmd="update-ca-certificates"
+        echo "Detected Debian/Ubuntu CA system (alternative)"
+    else
+        echo -e "${RED}Error:${NC} Could not detect CA trust store system"
+        echo "Supported systems:"
+        echo "  - Debian/Ubuntu: /usr/local/share/ca-certificates"
+        echo "  - RHEL/CentOS/Fedora: /etc/pki/ca-trust/source/anchors"
+        echo "  - OpenSUSE: /usr/share/pki/trust/anchors"
+        return 1
+    fi
+    
+    echo "Anchors directory: $anchors_dir"
+    echo "Update command: $update_cmd"
+    
+    # Export variables for use by caller
+    export CA_ANCHORS_DIR="$anchors_dir"
+    export CA_UPDATE_CMD="$update_cmd"
+    return 0
 }
 
 # Check arguments
@@ -152,6 +204,94 @@ case "$command" in
     docs)
         echo -e "${BLUE}Opening API documentation...${NC}"
         make_request "GET" "${ORCH_SERVICE_URL}/api/v2/docs/" "" true
+        ;;
+    ca-cert)
+        echo -e "${BLUE}Getting CA certificate...${NC}"
+        if make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/certificate" "$output_file"; then
+            echo -e "${GREEN}✓${NC} CA certificate retrieved successfully"
+        else
+            echo -e "${RED}✗${NC} Failed to retrieve CA certificate"
+            exit 1
+        fi
+        ;;
+    ca-info)
+        echo -e "${BLUE}Getting CA certificate information...${NC}"
+        make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/info" "" true
+        ;;
+    ca-status)
+        echo -e "${BLUE}Getting CA status...${NC}"
+        make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/status" "" true
+        ;;
+    ca-install)
+        echo -e "${BLUE}Installing CA certificate to system trust store...${NC}"
+        
+        # Detect CA system
+        if ! detect_ca_system; then
+            exit 1
+        fi
+        
+        # Check if we have the necessary permissions
+        if [ ! -w "$CA_ANCHORS_DIR" ]; then
+            echo -e "${RED}Error:${NC} No write permission to $CA_ANCHORS_DIR"
+            echo "This command requires root privileges. Please run with sudo:"
+            echo "  sudo $0 ca-install"
+            exit 1
+        fi
+        
+        # Create temporary file for CA certificate
+        local temp_ca_file=$(mktemp)
+        local ca_file="$CA_ANCHORS_DIR/orch-ca.crt"
+        
+        echo -e "${BLUE}Retrieving CA certificate...${NC}"
+        
+        # Get CA certificate
+        if ! make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/certificate" "$temp_ca_file"; then
+            echo -e "${RED}✗${NC} Failed to retrieve CA certificate"
+            rm -f "$temp_ca_file"
+            exit 1
+        fi
+        
+        # Verify the certificate file is valid
+        if [ ! -s "$temp_ca_file" ]; then
+            echo -e "${RED}✗${NC} Retrieved CA certificate is empty"
+            rm -f "$temp_ca_file"
+            exit 1
+        fi
+        
+        # Check if it's a valid certificate
+        if ! openssl x509 -in "$temp_ca_file" -text -noout >/dev/null 2>&1; then
+            echo -e "${RED}✗${NC} Retrieved file is not a valid certificate"
+            rm -f "$temp_ca_file"
+            exit 1
+        fi
+        
+        # Copy certificate to anchors directory
+        echo -e "${BLUE}Installing CA certificate to $ca_file...${NC}"
+        if cp "$temp_ca_file" "$ca_file"; then
+            echo -e "${GREEN}✓${NC} CA certificate installed to $ca_file"
+        else
+            echo -e "${RED}✗${NC} Failed to install CA certificate"
+            rm -f "$temp_ca_file"
+            exit 1
+        fi
+        
+        # Set appropriate permissions
+        chmod 644 "$ca_file"
+        
+        # Update CA trust store
+        echo -e "${BLUE}Updating CA trust store...${NC}"
+        if $CA_UPDATE_CMD; then
+            echo -e "${GREEN}✓${NC} CA trust store updated successfully"
+        else
+            echo -e "${YELLOW}⚠${NC} CA certificate installed but trust store update failed"
+            echo "You may need to run: $CA_UPDATE_CMD"
+        fi
+        
+        # Clean up temporary file
+        rm -f "$temp_ca_file"
+        
+        echo -e "${GREEN}✓${NC} CA certificate installation completed"
+        echo "The orch CA certificate is now trusted by the system"
         ;;
     *)
         echo -e "${RED}Error:${NC} Unknown command '$command'"
