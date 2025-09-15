@@ -7,8 +7,6 @@ set -e
 
 # --- Config (override with env) ---
 KRB5_REALM=${KRB5_REALM:-KOJI.BOX}
-KOJI_HUB_PRINC=${KOJI_HUB_PRINC:-HTTP/koji-hub.koji.box@${KRB5_REALM}}
-KOJI_ADMIN_PRINC=${KOJI_ADMIN_PRINC:-hub-admin@${KRB5_REALM}}
 
 # Function to log messages
 log() {
@@ -57,14 +55,8 @@ log "Fetching hub keytabs..."
 /app/orch.sh checkout ${KOJI_HUB_KEYTAB} /etc/koji-hub/koji-hub.keytab
 /app/orch.sh checkout ${KOJI_NGINX_KEYTAB} /etc/koji-hub/nginx.keytab
 
-# Fetching hub-admin keytab
+# Fetching admin keytab
 /app/orch.sh checkout ${KOJI_ADMIN_KEYTAB} /etc/koji-hub/admin.keytab
-kinit -kt /etc/koji-hub/admin.keytab ${KOJI_ADMIN_PRINC}
-
-# Set proper ownership
-log "Setting up file ownership..."
-chown -R koji:koji /etc/koji-hub /var/log/koji-hub /var/lib/koji-hub 2>/dev/null || true
-log "✓ File ownership set"
 
 log "Creating SSL certificate..."
 /app/orch.sh checkout ${KOJI_HUB_CERT} /etc/pki/tls/certs/localhost.crt
