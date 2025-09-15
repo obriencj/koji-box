@@ -175,6 +175,6 @@ When working on this project:
 
 ## Git Operations
 - **CRITICAL**: All git commands must be run through the git_operations subagent
-- **MANDATORY COMMIT FORMAT**: Always use `git commit -m - << 'EOF'` for all commits
-- **NO EXCEPTIONS**: Never use `git commit -m "message"` or other commit formats
+- **MANDATORY COMMIT FORMAT**: Always use `git commit -F - << 'EOF'` for all commits
+- **NO EXCEPTIONS**: Never use `git commit -F "message"` or other commit formats
 - **REFERENCE**: See `.cursor/subagents/git_operations.md` for complete guidelines

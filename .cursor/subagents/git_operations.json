@@ -20,16 +20,16 @@
   ],
   "configuration": {
     "repository": "current_working_directory",
-    "commit_method": "git commit -m - << 'EOF'",
+    "commit_method": "git commit -F -<< 'EOF'",
     "pager_settings": "--no-pager",
     "file_operations": "git mv for moves",
     "message_format": "descriptive_commit_messages",
-    "commit_rule": "MUST use git commit -m - << 'EOF' format for all commits"
+    "commit_rule": "MUST use git commit -F -<< 'EOF' format for all commits"
   },
   "command_patterns": {
     "status": "git --no-pager status",
     "log": "git --no-pager log",
-    "commit": "git commit -m - << 'EOF'",
+    "commit": "git commit -F -<< 'EOF'",
     "move": "git mv old_file new_file",
     "add": "git add file1 file2",
     "remove": "git rm file",
@@ -57,7 +57,7 @@
     "daily_workflow": [
       "git --no-pager status",
       "git add files",
-      "git commit -m - << 'EOF'",
+      "git commit -F -<< 'EOF'",
       "git push origin branch"
     ],
     "feature_development": [
