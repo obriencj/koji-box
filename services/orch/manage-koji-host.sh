@@ -37,6 +37,7 @@ function main() {
     fi
 
     setup_kinit
+    /app/orch.sh ca-install
 
     echo "Managing Koji host: $WORKER_NAME"
 

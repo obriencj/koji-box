@@ -5,37 +5,41 @@ echo "Fetching client principal from orch service..."
 
 # Configuration
 ORCH_SERVICE_URL="${ORCH_SERVICE_URL:-http://orch.koji.box:5000}"
-KRB5_REALM="${KRB5_REALM:-KOJI.BOX}"
-CLIENT_PRINCIPAL="${CLIENT_PRINCIPAL:-friend@${KRB5_REALM}}"
-KEYTAB_PATH="$HOME/.client.keytab"
 
-echo "Setting up Kerberos configuration..."
-
-export KRB5_CONFIG="${KRB5_CONFIG:-$HOME/.krb5.conf}"
-envsubst < /etc/krb5.conf.template > "$KRB5_CONFIG"
-
-echo "✓ Kerberos configuration created"
+CLIENT_KEYTAB_PATH="$HOME/friend.keytab"
+ADMIN_KEYTAB_PATH="$HOME/superfriend.keytab"
 
 # Fetch keytab from orch service using admin keytab (since no client-specific keytab exists)
-echo "Fetching keytab for principal: $CLIENT_PRINCIPAL"
-if ! /app/orch.sh checkout ${KOJI_ADMIN_KEYTAB} "$KEYTAB_PATH"; then
-    echo "ERROR: Failed to fetch keytab for $CLIENT_PRINCIPAL"
+echo "Fetching keytab for principal: $KOJI_CLIENT_PRINC"
+if ! /app/orch.sh checkout ${KOJI_CLIENT_KEYTAB} "$CLIENT_KEYTAB_PATH"; then
+    echo "ERROR: Failed to fetch keytab for $KOJI_CLIENT_PRINC"
+    exit 1
+fi
+
+echo "Fetching keytab for principal: $KOJI_CLIENT_ADMIN_PRINC"
+if ! /app/orch.sh checkout ${KOJI_CLIENT_ADMIN_KEYTAB} "$ADMIN_KEYTAB_PATH"; then
+    echo "ERROR: Failed to fetch keytab for $KOJI_CLIENT_ADMIN_PRINC"
     exit 1
 fi
 
 # Set proper permissions on keytab
-chmod 600 "$KEYTAB_PATH"
+chmod 600 "$CLIENT_KEYTAB_PATH"
+chmod 600 "$ADMIN_KEYTAB_PATH"
 
 # Perform kinit with the keytab
 echo "Performing kinit with keytab..."
-if kinit -kt "$KEYTAB_PATH" "${CLIENT_PRINCIPAL}"; then
-    echo "Successfully authenticated as $CLIENT_PRINCIPAL"
-
-    # Verify the ticket
-    echo "Current Kerberos tickets:"
-    klist
+if kinit -kt "$CLIENT_KEYTAB_PATH" "${KOJI_CLIENT_PRINC}"; then
+    echo "Successfully authenticated as $KOJI_CLIENT_PRINC"
 else
     echo "ERROR: Failed to authenticate with keytab"
+    exit 1
+fi
+
+echo "Performing kinit with admin keytab..."
+if kinit -kt "$ADMIN_KEYTAB_PATH" "${KOJI_CLIENT_ADMIN_PRINC}"; then
+    echo "Successfully authenticated as $KOJI_CLIENT_ADMIN_PRINC"
+else
+    echo "ERROR: Failed to authenticate with admin keytab"
     exit 1
 fi
 

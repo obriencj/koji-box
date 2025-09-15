@@ -21,6 +21,16 @@ ${KOJI_ADMIN_KEYTAB}:
   resource: ${KOJI_ADMIN_PRINC}
   description: Koji admin principal keytab
 
+${KOJI_CLIENT_KEYTAB}:
+  type: principal
+  resource: ${KOJI_CLIENT_PRINC}
+  description: Koji client principal keytab
+
+${KOJI_CLIENT_ADMIN_KEYTAB}:
+  type: principal
+  resource: ${KOJI_CLIENT_ADMIN_PRINC}
+  description: Koji client admin principal keytab
+
 ${KOJI_WORKER_KEYTAB}:
   type: worker
   resource: koji-worker-${SCALE_INDEX}

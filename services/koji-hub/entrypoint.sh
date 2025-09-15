@@ -50,6 +50,8 @@ if ! envsubst < /app/krb5.conf.template > /etc/krb5.conf; then
 fi
 log "✓ Kerberos configured"
 
+/app/orch.sh ca-install
+
 # Fetching hub keytabs using orch.sh
 log "Fetching hub keytabs..."
 /app/orch.sh checkout ${KOJI_HUB_KEYTAB} /etc/koji-hub/koji-hub.keytab

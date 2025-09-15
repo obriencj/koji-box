@@ -6,6 +6,6 @@ topurl = ${KOJI_TOP_URL}
 topdir = ${KOJI_TOP_DIR}
 
 authtype = kerberos
-no_ssl_verify = true
+# no_ssl_verify = true
 
 # The end.

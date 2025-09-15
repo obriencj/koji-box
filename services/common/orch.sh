@@ -149,6 +149,11 @@ function cmd_ca_install() {
     local temp_ca_file=$(mktemp)
     local ca_file="$CA_ANCHORS_DIR/orch-ca.crt"
 
+    if [ -f "$ca_file" ]; then
+        echo -e "${BLUE}CA certificate already exists in $ca_file${NC}"
+        return 0
+    fi
+
     echo -e "${BLUE}Retrieving CA certificate...${NC}"
 
     # Get CA certificate

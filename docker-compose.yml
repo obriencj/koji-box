@@ -54,6 +54,12 @@ x-common-koji-admin-keytab: &orch-koji-admin-keytab
   KOJI_ADMIN_KEYTAB: ${KOJI_ADMIN_KEYTAB:-457de48a-d14c-4413-9eb5-c907af03f56e}
   KOJI_ADMIN_PRINC: ${KOJI_ADMIN_PRINC:-hub-admin@KOJI.BOX}
 
+x-common-koji-client-keytabs: &orch-koji-client-keytabs
+  KOJI_CLIENT_KEYTAB: ${KOJI_CLIENT_KEYTAB:-a256f75b-8529-48ee-825d-d7ab71d65355}
+  KOJI_CLIENT_PRINC: ${KOJI_CLIENT_PRINC:-friend@KOJI.BOX}
+  KOJI_CLIENT_ADMIN_KEYTAB: ${KOJI_CLIENT_ADMIN_KEYTAB:-897bab27-3a1b-4bc5-9ba5-8954d206330b}
+  KOJI_CLIENT_ADMIN_PRINC: ${KOJI_CLIENT_ADMIN_PRINC:-superfriend@KOJI.BOX}
+
 x-common-koji-worker-keytab: &orch-koji-worker-keytab
   KOJI_WORKER_KEYTAB: ${KOJI_WORKER_KEYTAB:-033dbe9b-d003-47eb-8383-fcc6babc2619}
 
@@ -130,34 +136,6 @@ services:
         reservations:
           memory: 128m
 
-  keytab-service:
-    build:
-      context: .
-      dockerfile: services/keytab-service/Dockerfile
-    container_name: koji-boxed-keytab-service
-    depends_on:
-      kdc:
-        condition: service_healthy
-    environment:
-      <<: [*common-kerberos,
-           *common-koji,
-           *common-kadmin]
-    networks:
-      koji-network:
-        aliases:
-          - keytabs.koji.box
-    healthcheck:
-      test: ["CMD-SHELL", "/app/health-check.sh"]
-      interval: 10s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-        reservations:
-          memory: 128m
-
   orch-service:
     build:
       context: .
@@ -176,6 +154,7 @@ services:
            *orch-koji-nginx-keytab,
            *orch-koji-web-keytab,
            *orch-koji-admin-keytab,
+           *orch-koji-client-keytabs,
            *orch-koji-worker-keytab,
            *orch-koji-hub-cert,
            *orch-koji-nginx-cert]
@@ -211,15 +190,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      keytab-service:
+      orch-service:
         condition: service_healthy
     environment:
       <<: [*common-database,
            *common-koji,
            *common-kerberos,
-           *common-koji-admin,
-           *common-koji-hub,
-           *common-keytab-service]
+           *common-orch-service,
+           *orch-koji-hub-keytab,
+           *orch-koji-nginx-keytab]
       KOJI_HUB_URL: https://koji-hub.koji.box/kojihub  # override to bypass nginx
     volumes:
       - koji_storage:/mnt/koji:Z
@@ -253,7 +232,7 @@ services:
     depends_on:
       koji-hub:
         condition: service_healthy
-      keytab-service:
+      orch-service:
         condition: service_healthy
     environment:
       <<: [*common-keytab-service,
@@ -286,7 +265,7 @@ services:
     depends_on:
       koji-hub:
         condition: service_healthy
-      keytab-service:
+      orch-service:
         condition: service_healthy
     environment:
       <<: [*common-koji,
@@ -318,17 +297,17 @@ services:
       dockerfile: services/koji-client/Dockerfile
     container_name: koji-boxed-koji-client
     depends_on:
-      keytab-service:
+      orch-service:
         condition: service_healthy
       nginx:
         condition: service_healthy
       koji-hub:
         condition: service_healthy
     environment:
-      <<: [*common-koji,
+      <<: [*common-orch-service,
            *common-kerberos,
-           *common-keytab-service]
-      CLIENT_PRINCIPAL: ${CLIENT_PRINCIPAL:-friend@KOJI.BOX}
+           *common-koji,
+           *common-koji-client-keytabs]
     volumes:
       - koji_storage:/mnt/koji:ro
       - ./services/koji-client/init.d:/var/lib/koji-client/client-init.d:Z
@@ -344,25 +323,6 @@ services:
           memory: 128m
     profiles:
       - "shell"
-
-  test-runner:
-    extends:
-      service: koji-client
-    environment:
-      <<: [*common-koji,
-           *common-kerberos,
-           *common-keytab-service]
-      CLIENT_PRINCIPAL: ${CLIENT_PRINCIPAL:-test-user@KOJI.BOX}
-    volumes:
-      - koji_storage:/mnt/koji:ro
-      - ./services/test-runner/init.d:/var/lib/koji-client/client-init.d:Z
-    networks:
-      koji-network:
-        aliases:
-          - test-runner-client.koji.box
-    profiles:
-      - "test"
-
   nginx:
     image: nginx:alpine
     container_name: koji-boxed-nginx

@@ -23,10 +23,20 @@ cleanup_old_files() {
     find /tmp -name "krb5cc-*-*" -mmin +60 -delete 2>/dev/null || true
 }
 
+setup_ca_certificate() {
+    log "Setting up CA certificate..."
+    if orch.sh ca-install; then
+        log "✓ CA certificate installed"
+    else
+        log "Error: Failed to install CA certificate"
+        return 1
+    fi
+}
+
 # Function to set up Kerberos environment
 setup_krb() {
     log "Setting up Kerberos environment..."
-    
+
     # Check for existing admin keytab
     ADMIN_KEYTAB_CACHE="/tmp/admin.keytab"
     if [ ! -f "$ADMIN_KEYTAB_CACHE" ] || [ ! -s "$ADMIN_KEYTAB_CACHE" ]; then
@@ -39,20 +49,20 @@ setup_krb() {
     else
         log "Using cached admin keytab"
     fi
-    
+
     # Create a unique temporary credential cache file
     KRB5CCNAME="/tmp/krb5cc-$$-$(date +%s)"
     export KRB5CCNAME
-    
+
     # Set up Kerberos configuration
     export KRB5_CONFIG="/etc/krb5.conf"
-    
+
     # Authenticate using the admin keytab
     if ! kinit -k -t "$ADMIN_KEYTAB_CACHE" "$KOJI_ADMIN_PRINCIPAL"; then
         log "Error: Failed to authenticate as admin using kinit"
         return 1
     fi
-    
+
     log "✓ Successfully authenticated as admin with credential cache: $KRB5CCNAME"
     return 0
 }
@@ -62,13 +72,13 @@ teardown_krb() {
     # Only run if we have a credential cache file
     if [ -n "$KRB5CCNAME" ] && [ -f "$KRB5CCNAME" ]; then
         log "Tearing down Kerberos environment..."
-        
+
         # Destroy Kerberos tickets
         kdestroy 2>/dev/null || true
-        
+
         # Clean up temporary credential cache file
         rm -f "$KRB5CCNAME"
-        
+
         log "✓ Kerberos environment cleaned up"
     fi
 

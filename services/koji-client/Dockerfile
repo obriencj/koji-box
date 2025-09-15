@@ -42,20 +42,14 @@ COPY services/common/krb5.conf.template /etc/krb5.conf.template
 COPY services/common/koji.conf.template /etc/koji.conf.template
 
 COPY services/common/orch.sh /app/orch.sh
-RUN chmod +x /app/orch.sh
-
-# Copy entrypoint script
 COPY services/koji-client/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY services/koji-client/startup.sh /app/startup.sh
+RUN chmod +x /app/*.sh
 
 # Set ownership
 RUN chown -R friend:friend /etc/koji \
     /var/log/koji-client \
     /var/lib/koji-client
-
-# Switch to friend user
-USER friend
-WORKDIR /home/friend
 
 # Start client service (interactive shell)
 CMD ["/app/entrypoint.sh"]
