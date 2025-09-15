@@ -150,7 +150,7 @@ class ContainerClient:
             return None
 
     def get_container_info(self, container_id: str) -> Optional[Dict]:
-        """Get detailed container information"""
+        """Get detailed container information (excluding sensitive env vars)"""
         if not self.is_connected():
             return None
 
@@ -161,8 +161,8 @@ class ContainerClient:
                 'name': container.name,
                 'status': container.status,
                 'labels': container.labels,
-                'networks': container.attrs.get('NetworkSettings', {}).get('Networks', {}),
-                'env': container.attrs.get('Config', {}).get('Env', [])
+                'networks': container.attrs.get('NetworkSettings', {}).get('Networks', {})
+                # Note: 'env' field intentionally excluded to prevent sensitive data leakage
             }
         except Exception as e:
             logger.error(f"Error getting container info for {container_id}: {e}")
