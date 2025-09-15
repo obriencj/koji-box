@@ -5,7 +5,7 @@ Handles resource creation, mapping, and lifecycle management
 """
 
 import os
-import json
+import yaml
 import logging
 import subprocess
 import tempfile
@@ -43,8 +43,8 @@ class ResourceManager:
         self.cert_org_unit = os.getenv('CERT_ORG_UNIT', 'Koji')
         self.cert_days = int(os.getenv('CERT_DAYS', '365'))
 
-    def load_resource_mappings(self, mapping_file: str = "/app/resource_mapping.json") -> bool:
-        """Load resource mappings from generated JSON file"""
+    def load_resource_mappings(self, mapping_file: str = "/app/resource_mapping.yaml") -> bool:
+        """Load resource mappings from generated YAML file"""
         try:
             mapping_path = Path(mapping_file)
             if not mapping_path.exists():
@@ -52,7 +52,7 @@ class ResourceManager:
                 return False
 
             with open(mapping_path, 'r') as f:
-                mappings = json.load(f)
+                mappings = yaml.safe_load(f)
 
             loaded_count = 0
             for uuid, mapping in mappings.items():
