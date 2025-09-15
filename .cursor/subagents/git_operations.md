@@ -24,7 +24,7 @@ git --no-pager status
 git --no-pager log
 
 # Create commits with heredoc message format
-git commit -F -<< 'EOF'
+git commit -F - << 'EOF'
 Commit message
 EOF
 
@@ -41,7 +41,7 @@ git checkout -- file.py
 
 ## Configuration
 - **Repository**: Current working directory
-- **Commit Method**: `git commit -F -<< 'EOF'` with heredoc input
+- **Commit Method**: `git commit -F - << 'EOF'` with heredoc input
 - **Pager Settings**: `--no-pager` for status and log commands
 - **File Operations**: Always use `git mv` for file moves
 - **Message Format**: Descriptive commit messages explaining purpose
@@ -72,7 +72,7 @@ git add -A  # All changes
 git add .   # Current directory
 
 # Create commit with heredoc message format
-git commit -F -<< 'EOF'
+git commit -F - << 'EOF'
 Add user authentication endpoints
 EOF
 
@@ -133,7 +133,7 @@ git push -u origin feature/branch
 ### CRITICAL: Required Commit Format
 **ALL git commits MUST use the following format:**
 ```bash
-git commit -F -<< 'EOF'
+git commit -F - << 'EOF'
 <commit message>
 EOF
 ```
@@ -174,7 +174,7 @@ EOF
 ### Daily Workflow
 1. Check status: `git --no-pager status`
 2. Stage changes: `git add file1.py file2.py`
-3. Create commit: `git commit -F -<< 'EOF'`
+3. Create commit: `git commit -F - << 'EOF'`
 4. Push changes: `git push origin branch-name`
 
 ### Feature Development
