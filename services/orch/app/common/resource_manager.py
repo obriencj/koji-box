@@ -79,7 +79,7 @@ class ResourceManager:
                 '-w', self.kadmin_pass,
                 '-q', f'addprinc -randkey {principal_name}'
             ]
-            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 logger.error(f"Failed to create principal {principal_name}: {result.stderr}")
                 return False
@@ -97,7 +97,7 @@ class ResourceManager:
                 '-w', self.kadmin_pass,
                 '-q', f'getprinc {principal_name}'
             ]
-            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.stderr and "Principal does not exist" in result.stderr:
                 return False
             return result.returncode == 0
@@ -119,7 +119,7 @@ class ResourceManager:
                 '-w', self.kadmin_pass,
                 '-q', f'ktadd -k {keytab_path} {principal_name}'
             ]
-            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 logger.error(f"Failed to create keytab for {principal_name}: {result.stderr}")
                 return None
@@ -165,7 +165,7 @@ class ResourceManager:
                 '-subj', f"/C={self.cert_country}/ST={self.cert_state}/L={self.cert_location}/O={self.cert_org}/OU={self.cert_org_unit}/CN={cn}"
             ]
 
-            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
                 logger.error(f"Failed to create certificate for {cn}: {result.stderr}")
                 return None, None
@@ -183,7 +183,7 @@ class ResourceManager:
         """Manage Koji host using the shell script"""
         try:
             cmd = ['/app/manage-koji-host.sh', worker_name]
-            result = safe_subprocess_run(cmd, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             if result.returncode != 0:
                 logger.error(f"Failed to manage Koji host {worker_name}: {result.stderr}")
                 return False
