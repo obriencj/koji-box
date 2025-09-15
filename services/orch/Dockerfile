@@ -23,7 +23,6 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy application code
 COPY services/orch/app/ /app/app/
-COPY services/orch/templates/ /app/templates/
 
 COPY services/orch/entrypoint.sh /app/
 COPY services/orch/health-check.sh /app/

@@ -72,13 +72,9 @@ make_request() {
 # Function to validate UUID format
 validate_uuid() {
     local uuid="$1"
-    # Accept both standard UUIDs (hex only) and the placeholder format used in config
-    # Standard UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (hex only)
-    # Placeholder:   xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (alphanumeric)
-    if [[ ! "$uuid" =~ ^[0-9a-zA-Z]{8}-[0-9a-zA-Z]{4}-[0-9a-zA-Z]{4}-[0-9a-zA-Z]{4}-[0-9a-zA-Z]{12}$ ]]; then
+    if [[ ! "$uuid" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
         echo -e "${RED}Error:${NC} Invalid UUID format: $uuid"
         echo "Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        echo "Note: UUIDs can contain alphanumeric characters (0-9, a-z, A-Z)"
         exit 1
     fi
 }

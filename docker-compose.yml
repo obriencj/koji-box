@@ -39,33 +39,33 @@ x-common-koji-hub: &common-koji-hub
   KOJI_NGINX_PRINC: ${KOJI_NGINX_PRINC:-HTTP/koji.box@KOJI.BOX}
 
 x-common-koji-hub-keytab: &orch-koji-hub-keytab
-  KOJI_HUB_KEYTAB: ${KOJI_HUB_KEYTAB:-a1b2c3d4-e5f6-7890-abcd-ef1234567890}
+  KOJI_HUB_KEYTAB: ${KOJI_HUB_KEYTAB:-789490a1-e160-49c2-a1f0-e6db926c054e}
   KOJI_HUB_PRINC: ${KOJI_HUB_PRINC:-HTTP/koji-hub.koji.box@KOJI.BOX}
 
 x-common-koji-nginx-keytab: &orch-koji-nginx-keytab
-  KOJI_NGINX_KEYTAB: ${KOJI_NGINX_KEYTAB:-b2c3d4e5-f6g7-8901-bcde-f23456789012}
+  KOJI_NGINX_KEYTAB: ${KOJI_NGINX_KEYTAB:-508af9c8-01fd-413a-9865-eeaacca57c7d}
   KOJI_NGINX_PRINC: ${KOJI_NGINX_PRINC:-HTTP/koji.box@KOJI.BOX}
 
 x-common-koji-web-keytab: &orch-koji-web-keytab
-  KOJI_WEB_KEYTAB: ${KOJI_WEB_KEYTAB:-c3d4e5f6-g7h8-9012-cdef-345678901234}
+  KOJI_WEB_KEYTAB: ${KOJI_WEB_KEYTAB:-4a8b8ab2-e4ae-40cf-8406-08d539bc338e}
   KOJI_WEB_PRINC: ${KOJI_WEB_PRINC:-HTTP/koji-web.koji.box@KOJI.BOX}
 
 x-common-koji-admin-keytab: &orch-koji-admin-keytab
-  KOJI_ADMIN_KEYTAB: ${KOJI_ADMIN_KEYTAB:-d4e5f6g7-h8i9-0123-defg-456789012345}
+  KOJI_ADMIN_KEYTAB: ${KOJI_ADMIN_KEYTAB:-457de48a-d14c-4413-9eb5-c907af03f56e}
   KOJI_ADMIN_PRINC: ${KOJI_ADMIN_PRINC:-hub-admin@KOJI.BOX}
 
 x-common-koji-worker-keytab: &orch-koji-worker-keytab
-  KOJI_WORKER_KEYTAB: ${KOJI_WORKER_KEYTAB:-e5f6g7h8-i9j0-1234-efgh-567890123456}
+  KOJI_WORKER_KEYTAB: ${KOJI_WORKER_KEYTAB:-033dbe9b-d003-47eb-8383-fcc6babc2619}
 
 x-common-koji-hub-cert: &orch-koji-hub-cert
-  KOJI_HUB_CERT: ${KOJI_HUB_CERT:-f6g7h8i9-j0k1-2345-fghi-678901234567}
+  KOJI_HUB_CERT: ${KOJI_HUB_CERT:-28661f1e-f1a9-461f-a05c-6c399a8c66f3}
   KOJI_HUB_CERT_CN: ${KOJI_HUB_CERT_CN:-koji-hub.koji.box}
-  KOJI_HUB_KEY: ${KOJI_HUB_KEY:-g7h8i9j0-k1l2-3456-ghij-789012345678}
+  KOJI_HUB_KEY: ${KOJI_HUB_KEY:-b5876248-dc72-498c-af2a-1b28723bee52}
 
 x-common-koji-nginx-cert: &orch-koji-nginx-cert
-  KOJI_NGINX_CERT: ${KOJI_NGINX_CERT:-h8i9j0k1-l2m3-4567-hijk-890123456789}
+  KOJI_NGINX_CERT: ${KOJI_NGINX_CERT:-482ae0cb-41d3-4a01-88fd-d86c557bc75a}
   KOJI_NGINX_CERT_CN: ${KOJI_NGINX_CERT_CN:-koji.box}
-  KOJI_NGINX_KEY: ${KOJI_NGINX_KEY:-i9j0k1l2-m3n4-5678-ijkl-901234567890}
+  KOJI_NGINX_KEY: ${KOJI_NGINX_KEY:-c016e63d-d250-4b57-af1e-2f35fd5b51fe}
 
 
 services:
@@ -166,6 +166,7 @@ services:
     depends_on:
       kdc:
         condition: service_healthy
+    privileged: true
     environment:
       <<: [*common-kerberos,
            *common-koji,
@@ -178,9 +179,13 @@ services:
            *orch-koji-worker-keytab,
            *orch-koji-hub-cert,
            *orch-koji-nginx-cert]
+      ORCH_PRINC: ${ORCH_PRINC:-orch@KOJI.BOX}
+      ORCH_KEYTAB: ${ORCH_KEYTAB:-4e344539-8902-4ea1-8797-cd49de9e1c5f}
     volumes:
-      - ${PODMAN_SOCKET:-/var/run/podman.sock}:/var/run/docker.sock:ro
+      # see SOCKET_README.md for details on using PODMAN_SOCKET with rootless podman
+      - ${PODMAN_SOCKET:-/var/run/podman.sock}:/var/run/docker.sock
       - ./data/orch:/mnt/data:Z
+      - ./services/orch/templates/resource_mapping.yaml.template:/app/resource_mapping.yaml.template:ro,Z
     networks:
       koji-network:
         aliases:

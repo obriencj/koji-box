@@ -7,9 +7,23 @@ set -e
 
 echo "Starting Orch service initialization..."
 
+echo "Generating kerberos configuration from environment variables..."
+if ! envsubst < /app/krb5.conf.template > /etc/krb5.conf; then
+    echo "ERROR: Failed to generate kerberos configuration"
+    exit 1
+fi
+echo "✓ Kerberos configuration generated"
+
+echo "Generating koji configuration from environment variables..."
+if ! envsubst < /app/koji.conf.template > /etc/koji.conf; then
+    echo "ERROR: Failed to generate koji configuration"
+    exit 1
+fi
+echo "✓ Koji configuration generated"
+
 # Generate resource mapping from template
 echo "Generating resource mapping from environment variables..."
-if ! envsubst < /app/templates/resource_mapping.yaml.template > /app/resource_mapping.yaml; then
+if ! envsubst < /app/resource_mapping.yaml.template > /app/resource_mapping.yaml; then
     echo "ERROR: Failed to generate resource mapping"
     exit 1
 fi
@@ -32,6 +46,6 @@ echo "✓ Directories created"
 
 echo "Orch service initialization complete"
 
-gunicorn -b 0.0.0.0:5000 app:app
+exec gunicorn -b 0.0.0.0:5000 app:app
 
 # The end.
