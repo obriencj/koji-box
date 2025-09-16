@@ -49,7 +49,9 @@ pull-koji: ## Clone/update Koji repository
 
 build: pull-koji ## Build all container images
 	@echo -e "$(BLUE)Building all container images...$(NC)"
-	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) build --no-cache
+	# we have to explicitly build the common image first because podman-compose build doesn't support additional_context
+	podman-compose build common
+	podman-compose build
 	@echo -e "$(GREEN)All images built successfully$(NC)"
 
 build-fast: pull-koji ## Build all container images (cached)

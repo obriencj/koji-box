@@ -1,69 +1,30 @@
-FROM almalinux:9
+FROM build_image
 
-# Install system dependencies
-RUN dnf install -qy dnf-plugins-core epel-release && \
-    dnf config-manager --set-enabled crb && \
-    dnf install -qy \
-    postgresql-devel \
-    gcc \
-    libffi-devel \
-    openssl-devel \
-    bash \
-    shadow \
-    util-linux \
-    git \
-    make \
-    python3-devel \
-    python3-gssapi \
-    python3-dateutil \
-    python3-requests-gssapi \
-    rpm \
+# Install worker-specific dependencies
+RUN dnf install -qy \
     createrepo_c \
     mock \
-    yum-utils
+    yum-utils && \
+    dnf clean all
 
-# Install Python packages
-RUN pip install --no-cache-dir \
-    psycopg2-binary \
-    sqlalchemy \
-    requests \
-    cryptography \
-    pyopenssl \
-    docker
-
-# Create koji user and group
-RUN useradd -m -U -s /bin/bash koji
-
-# Create directories
+# Create worker-specific directories
 RUN mkdir -p /var/log/koji-worker \
     /var/lib/koji-worker \
-    /mnt/koji \
     /var/lib/mock \
     /var/cache/mock
 
-# Copy Koji source (will be mounted from host)
-COPY koji-src/ /mnt/koji-src/
-RUN pip install --no-cache-dir /mnt/koji-src/
-
-
 # Copy worker service script
-COPY services/koji-worker/worker-service.py /usr/local/bin/worker-service.py
-RUN chmod +x /usr/local/bin/worker-service.py
+COPY services/koji-worker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Copy health check script
 COPY services/koji-worker/health-check.sh /usr/local/bin/health-check.sh
 RUN chmod +x /usr/local/bin/health-check.sh
 
-# Set ownership
-RUN chown -R koji:koji /var/log/koji-worker \
-    /var/lib/koji-worker \
-    /var/lib/mock \
-    /var/cache/mock
-
 # Switch to koji user
 # USER koji
 
 # Start worker service
-CMD ["/usr/local/bin/worker-service.py"]
+CMD ["/usr/local/bin/entrypoint.sh"]
 
 # The end.

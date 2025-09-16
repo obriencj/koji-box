@@ -5,8 +5,6 @@
 
 set -e
 
-# --- Config (override with env) ---
-KRB5_REALM=${KRB5_REALM:-KOJI.BOX}
 
 # Function to log messages
 log() {
@@ -15,6 +13,11 @@ log() {
 
 log "Starting Koji Hub entrypoint..."
 
+log "Running configure.sh"
+/app/configure.sh
+log "✓ configure.sh completed"
+
+
 # Generate hub configuration from template
 log "Generating Koji hub configuration..."
 if ! envsubst < /app/hub.conf.template > /etc/koji-hub/hub.conf; then
@@ -22,6 +25,7 @@ if ! envsubst < /app/hub.conf.template > /etc/koji-hub/hub.conf; then
     exit 1
 fi
 log "✓ Koji hub configured"
+
 
 # Generate apache configuration from template
 log "Generating Apache configuration..."
@@ -32,45 +36,35 @@ fi
 cp -f /etc/koji-hub/httpd.conf /etc/httpd/conf.d/kojihub.conf
 log "✓ Apache configured"
 
-# Generate Koji client configuration from template
-log "Generating Koji client configuration..."
-if ! envsubst < /app/koji.conf.template > /etc/koji.conf; then
-    log "Error: Failed to generate Koji client configuration"
-    exit 1
-fi
-log "✓ Koji client configured"
 
-# Set up Kerberos configuration
-log "Generating Kerberos configuration..."
-if ! envsubst < /app/krb5.conf.template > /etc/krb5.conf; then
-    log "Error: Failed to generate Kerberos configuration"
-    exit 1
-fi
-log "✓ Kerberos configured"
-
-/app/orch.sh ca-install
-
-# Fetching hub keytabs using orch.sh
+# Fetching hub keytab claims
 log "Fetching hub keytabs..."
 /app/orch.sh checkout ${KOJI_HUB_KEYTAB} /etc/koji-hub/koji-hub.keytab
 /app/orch.sh checkout ${KOJI_NGINX_KEYTAB} /etc/koji-hub/nginx.keytab
 
-# Fetching admin keytab
+# Fetching admin keytab claim
+log "Fetching admin keytab..."
 /app/orch.sh checkout ${KOJI_ADMIN_KEYTAB} /etc/koji-hub/admin.keytab
 
-
-log "Creating SSL certificate..."
+# Fetching SSL claims
+log "Fetching SSL certificate..."
 /app/orch.sh checkout ${KOJI_HUB_CERT} /etc/pki/tls/certs/localhost.crt
 /app/orch.sh checkout ${KOJI_HUB_KEY} /etc/pki/tls/private/localhost.key
-log "✓ SSL certificate created"
 
+log "Starting Koji hub service"
 /sbin/httpd -DFOREGROUND &
 export HUB_PID=$!
 log "✓ Koji hub service started (pid: $HUB_PID)"
 
-# Start the Koji hub service
-log "Starting startup.sh"
+log "Launching startup scripts"
 su koji -c /usr/local/bin/startup.sh
+log "✓ startup scripts completed"
+
+log "Setting up signal handlers"
+trap 'kill -SIGINT "$HUB_PID" ; wait "$HUB_PID"' INT
+trap 'kill -SIGTERM "$HUB_PID" ; wait "$HUB_PID"' TERM
+trap 'kill -SIGUSR1 "$HUB_PID" ; wait "$HUB_PID"' USR1
+log "✓ Signal handlers set"
 
 wait $HUB_PID
 
