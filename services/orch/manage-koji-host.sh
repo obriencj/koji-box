@@ -12,10 +12,10 @@ function setup_kinit() {
     if [ -f /app/orch.keytab ]; then
         echo "✓ Keytab already exists"
     else
-        /app/orch.sh ${KOJI_ORCH_KEYTAB} /app/orch.keytab
+        /app/orch.sh ${ORCH_KEYTAB} /app/orch.keytab
     fi
 
-    kinit -k -t /app/orch.keytab ${KOJI_ORCH_PRINC}
+    kinit -k -t /app/orch.keytab ${ORCH_PRINC}
     trap cleanup_kinit EXIT
 }
 
