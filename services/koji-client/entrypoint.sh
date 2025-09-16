@@ -1,57 +1,19 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
 
-# --- Config (override with env) ---
-INIT_DIR="${INIT_DIR:-/var/lib/koji-client/client-init.d}"   # place your init scripts here
+echo "Setting up Kerberos configuration..."
+envsubst < /etc/krb5.conf.template > /etc/krb5.conf
+echo "✓ Kerberos configuration created"
 
+echo "Setting up Koji configuration..."
+envsubst < /etc/koji.conf.template > /etc/koji.conf
+echo "✓ Koji configuration created"
 
-# --- Run init scripts exactly once ---
-run_init_scripts() {
-    if [[ -d "$INIT_DIR" ]]; then
-        echo "[entrypoint] Running init scripts in $INIT_DIR ..."
-        # Sort to get a stable order (e.g., 00-foo.sh, 10-bar.sh)
-        while IFS= read -r -d '' f; do
-            if [[ -x "$f" ]]; then
-                echo "[entrypoint] -> $f"
-                # Let scripts exit with non-zero without killing the container:
-                set +e
-                "$f"
-                rc=$?
-                set -e
-                echo "[entrypoint] <- $f (exit $rc)"
-            else
-                echo "[entrypoint] WARNING: $f is not executable"
-            fi
-        done < <(find "$INIT_DIR" -maxdepth 1 -type f -iname "*.sh" -print0 | sort -z)
-
-        echo "[entrypoint] Init complete."
-    else
-        echo "[entrypoint] No init directory found at $INIT_DIR"
-    fi
-}
-
-# --- Start interactive shell ---
-start_client() {
-    echo "[entrypoint] Starting Koji client service..."
-    echo "Type 'exit' to quit"
-    
-    # Start bash shell
-    exec /bin/bash
-}
-
-# --- Main execution ---
-main() {
-    echo "[entrypoint] Starting Koji Client Service"
-
-    # Run initialization scripts
-    run_init_scripts
-
-    # Start client service
-    start_client
-}
+/app/orch.sh ca-install
 
 # Run main function
-main "$@"
+echo "Running startup.sh as friend user..."
+su friend /app/startup.sh
 
+exec tail -f /dev/null
 
 # The end.

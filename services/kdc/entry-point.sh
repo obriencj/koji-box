@@ -63,6 +63,7 @@ wait_kadmind() {
   return 1
 }
 wait_kadmind || true
+touch /var/lib/krb5kdc/kadmind-ready
 
 # --- Run init scripts exactly once (they may exit; we ignore their exit codes) ---
 if [[ -d "$INIT_DIR" ]]; then
@@ -84,6 +85,7 @@ if [[ -d "$INIT_DIR" ]]; then
 
   echo "[entrypoint] Init complete."
 fi
+touch /var/lib/krb5kdc/kdc-init-complete
 
 # --- If either daemon exits, shut down the other and exit with its status ---
 wait -n "$PID_KDC" "$PID_KADMIN"

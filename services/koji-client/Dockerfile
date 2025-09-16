@@ -2,22 +2,23 @@ FROM python:3.11-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
-    gcc \
-    musl-dev \
-    libffi-dev \
-    openssl-dev \
-    curl \
     bash \
-    shadow \
-    util-linux \
-    git \
-    make \
-    gcc \
+    curl \
+    envsubst \
     g++ \
-    python3-dev \
-    krb5-dev \
+    gcc \
+    git \
+    jq \
     krb5 \
-    envsubst
+    krb5-dev \
+    libffi-dev \
+    make \
+    musl-dev \
+    openssl \
+    openssl-dev \
+    python3-dev \
+    shadow \
+    util-linux
 
 # Install Python packages
 RUN pip install --no-cache-dir \
@@ -41,21 +42,15 @@ RUN pip install /mnt/koji-src/ && \
 COPY services/common/krb5.conf.template /etc/krb5.conf.template
 COPY services/common/koji.conf.template /etc/koji.conf.template
 
-COPY services/common/fetch.sh /app/fetch.sh
-RUN chmod +x /app/fetch.sh
-
-# Copy entrypoint script
+COPY services/common/orch.sh /app/orch.sh
 COPY services/koji-client/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY services/koji-client/startup.sh /app/startup.sh
+RUN chmod +x /app/*.sh
 
 # Set ownership
 RUN chown -R friend:friend /etc/koji \
     /var/log/koji-client \
     /var/lib/koji-client
-
-# Switch to friend user
-USER friend
-WORKDIR /home/friend
 
 # Start client service (interactive shell)
 CMD ["/app/entrypoint.sh"]

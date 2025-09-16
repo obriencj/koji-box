@@ -35,8 +35,6 @@ help: ## Show this help message
 	@echo -e "$(YELLOW)Environment Variables:$(NC)"
 	@echo -e "  KOJI_GIT_REPO    - Koji repository URL (default: https://pagure.io/koji.git)"
 	@echo -e "  KOJI_BRANCH      - Git branch to use (default: main)"
-	@echo -e "  BUILD_ARCH       - Target architecture (default: x86_64)"
-	@echo -e "  COMPOSE_FILE     - Docker compose file (default: docker-compose.yml)"
 
 pull-koji: ## Clone/update Koji repository
 	@echo -e "$(BLUE)Pulling Koji repository...$(NC)"
@@ -59,16 +57,14 @@ build-fast: pull-koji ## Build all container images (cached)
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) build
 	@echo -e "$(GREEN)All images built successfully$(NC)"
 
-up: ## Start all services
+up: down ## Start all services
 	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up -d
 	@echo -e "$(GREEN)Koji environment started$(NC)"
-	
-launch: ## Start all services in the foreground
+
+launch: down ## Start all services in the foreground
 	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up --build
-
-relaunch: down launch ## Restart all services in the foreground
 
 down: ## Stop all services
 	@echo -e "$(BLUE)Stopping Koji environment...$(NC)"
@@ -98,60 +94,21 @@ logs-kdc: ## Show logs for KDC
 logs-nginx: ## Show logs for Nginx
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) logs -f nginx
 
-logs-keytab-service: ## Show logs for Keytab Service
-	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) logs -f keytab-service
+logs-orch: ## Show logs for Keytab Service
+	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) logs -f orch-service
 
 status: ## Show status of all services
 	@echo -e "$(BLUE)Service Status:$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) ps
 
-setup-db: ## Initialize database schema
-	@echo -e "$(BLUE)Setting up database...$(NC)"
-	@if [ ! -f "data/postgres/.initialized" ]; then \
-		echo -e "$(YELLOW)Initializing database schema...$(NC)"; \
-		podman exec koji-boxed-postgres-1 psql -U koji -d koji -f /docker-entrypoint-initdb.d/init-koji.sql; \
-		touch data/postgres/.initialized; \
-		echo -e "$(GREEN)Database initialized$(NC)"; \
-	else \
-		echo -e "$(YELLOW)Database already initialized$(NC)"; \
-	fi
-
-setup-hub: ## Configure Koji Hub
-	@echo -e "$(BLUE)Configuring Koji Hub...$(NC)"
-	@if [ ! -f "data/koji-storage/.hub-configured" ]; then \
-		echo -e "$(YELLOW)Running hub setup...$(NC)"; \
-		podman exec koji-boxed-koji-hub-1 /usr/local/bin/setup-koji-hub.sh; \
-		touch data/koji-storage/.hub-configured; \
-		echo -e "$(GREEN)Hub configured$(NC)"; \
-	else \
-		echo -e "$(YELLOW)Hub already configured$(NC)"; \
-	fi
-
-setup: setup-db setup-hub ## Complete environment setup
-
-setup-kdc: ## Setup KDC and create service principals
-	@echo -e "$(BLUE)Setting up KDC...$(NC)"
-	@if [ ! -f "data/kdc/.initialized" ]; then \
-		echo -e "$(YELLOW)Initializing KDC realm...$(NC)"; \
-		podman exec koji-boxed-kdc-1 /usr/local/bin/setup-kdc.sh; \
-		touch data/kdc/.initialized; \
-		echo -e "$(GREEN)KDC initialized$(NC)"; \
-	else \
-		echo -e "$(YELLOW)KDC already initialized$(NC)"; \
-	fi
-
-kinit-admin: ## Get Kerberos ticket for admin user
-	@echo -e "$(BLUE)Getting Kerberos ticket for admin...$(NC)"
-	podman exec koji-boxed-kdc-1 kinit admin/admin@KOJI.BOX -w admin_password
-
 list-principals: ## List Kerberos principals
 	@echo -e "$(BLUE)Listing Kerberos principals...$(NC)"
-	podman exec koji-boxed-kdc-1 kadmin.local -q "list_principals"
+	podman-compose exec kdc kadmin.local -q "list_principals"
 
 test-kerberos: ## Test Kerberos authentication
 	@echo -e "$(BLUE)Testing Kerberos authentication...$(NC)"
-	podman exec koji-boxed-kdc-1 kinit admin/admin@KOJI.BOX -w admin_password
-	podman exec koji-boxed-kdc-1 klist
+	podman-compose exec kdc kinit admin/admin@KOJI.BOX -w admin_password
+	podman-compose exec kdc klist
 
 test: ## Run integration tests
 	@echo -e "$(BLUE)Running integration tests...$(NC)"
@@ -167,46 +124,49 @@ test: ## Run integration tests
 		echo -e "$(YELLOW)No test scripts found$(NC)"; \
 	fi
 
+shell-client: ## Open shell in Koji Client container
+	podman-compose exec --user friend koji-client /bin/bash
+
 shell-hub: ## Open shell in Koji Hub container
-	podman exec -it koji-boxed-koji-hub-1 /bin/bash
+	podman-compose exec koji-hub /bin/bash
 
 shell-worker: ## Open shell in Koji Worker container
-	podman exec -it koji-boxed-koji-worker-1 /bin/bash
+	podman-compose exec koji-worker /bin/bash
 
 shell-web: ## Open shell in Koji Web container
-	podman exec -it koji-boxed-koji-web-1 /bin/bash
+	podman-compose exec koji-web /bin/bash
 
 shell-postgres: ## Open shell in PostgreSQL container
-	podman exec -it koji-boxed-postgres-1 /bin/bash
+	podman-compose exec postgres /bin/bash
 
 shell-kdc: ## Open shell in KDC container
-	podman exec -it koji-boxed-kdc-1 /bin/bash
+	podman-compose exec kdc /bin/bash
 
 shell-nginx: ## Open shell in Nginx container
-	podman exec -it koji-boxed-nginx-1 /bin/bash
+	podman-compose exec nginx /bin/bash
 
-clean: ## Remove all containers and images
-	@echo -e "$(BLUE)Cleaning up...$(NC)"
-	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) down -v --rmi all
-	podman system prune -f
+shell-orch: ## Open shell in Orch container
+	podman-compose exec orch-service /bin/bash
+
+purge: ## Remove all containers and images
+	@echo -e "$(BLUE)Cleaning up containers, images, and volumes...$(NC)"
+	podman-compose down --volumes --rmi all
 	@echo -e "$(GREEN)Cleanup completed$(NC)"
 
-clean-data: ## Remove all data volumes
-	@echo -e "$(BLUE)Removing data volumes...$(NC)"
-	rm -rf data/postgres/*
-	rm -rf data/koji-storage/*
-	rm -rf data/logs/*
-	@echo -e "$(GREEN)Data volumes cleaned$(NC)"
+clean-volumes: ## Remove all volumes
+	@echo -e "$(BLUE)Cleaning up containers and volumes...$(NC)"
+	podman-compose down --volumes
+	@echo -e "$(GREEN)Volumes cleaned up$(NC)"
 
-rebuild: clean build ## Force rebuild all images
+rebuild: purge build ## Force rebuild all images
 
-dev: up setup ## Start development environment with full setup
+dev: up ## Start development environment with full setup
 
 # Development helpers
-dev-logs: up setup logs ## Start dev environment and show logs
+dev-logs: up logs ## Start dev environment and show logs
 
 # Quick commands
-quick-start: build up setup ## Quick start: build, start, and setup everything
+quick-start: build up ## Quick start: build, start, and setup everything
 
 # Maintenance
 backup: ## Backup data volumes

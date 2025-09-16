@@ -41,17 +41,17 @@ RUN mkdir -p /etc/koji-web \
     /usr/share/koji-web
 
 # Copy shared configuration templates
-COPY configs/shared/krb5.conf.template /app/krb5.conf.template
+COPY services/common/krb5.conf.template /app/krb5.conf.template
 
 # Copy Koji source (will be mounted from host)
 # The actual Koji installation will be done in the entrypoint script
 
 # Copy entrypoint script
-COPY containers/koji-web/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY services/koji-web/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Copy health check script
-COPY containers/koji-web/health-check.sh /usr/local/bin/health-check.sh
+COPY services/koji-web/health-check.sh /usr/local/bin/health-check.sh
 RUN chmod +x /usr/local/bin/health-check.sh
 
 # Set ownership
