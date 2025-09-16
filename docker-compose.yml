@@ -189,7 +189,7 @@ services:
       context: .
       dockerfile: services/koji-hub/Dockerfile
       additional_context:
-        koji-boxed-common: service:common
+        koji-boxed-common: "service:common"
     container_name: koji-boxed-koji-hub
     hostname: koji-hub.koji.box
     depends_on:
@@ -270,7 +270,7 @@ services:
       context: .
       dockerfile: services/koji-web/Dockerfile
       additional_context:
-        koji-boxed-common: service:common
+        koji-boxed-common: "service:common"
     depends_on:
       koji-hub:
         condition: service_healthy
@@ -306,7 +306,8 @@ services:
       context: .
       dockerfile: services/koji-client/Dockerfile
       additional_context:
-        koji-boxed-common: service:common
+        koji-boxed-common: "service:common"
+    container_name: koji-boxed-koji-client
     depends_on:
       orch-service:
         condition: service_healthy

@@ -60,4 +60,7 @@ log "Launching startup scripts"
 su koji -c /usr/local/bin/startup.sh
 log "✓ startup scripts completed"
 
+log "Rejoining process $HUB_PID"
+wait "$HUB_PID"
+
 # The end.
