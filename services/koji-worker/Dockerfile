@@ -1,4 +1,4 @@
-FROM almalinux/9-base:latest
+FROM almalinux:9
 
 # Install system dependencies
 RUN dnf install -qy dnf-plugins-core epel-release && \
@@ -42,14 +42,16 @@ RUN mkdir -p /var/log/koji-worker \
     /var/cache/mock
 
 # Copy Koji source (will be mounted from host)
-# The actual Koji installation will be done in the entrypoint script
+COPY koji-src/ /mnt/koji-src/
+RUN pip install --no-cache-dir /mnt/koji-src/
+
 
 # Copy worker service script
-COPY worker-service.py /usr/local/bin/worker-service.py
+COPY services/koji-worker/worker-service.py /usr/local/bin/worker-service.py
 RUN chmod +x /usr/local/bin/worker-service.py
 
 # Copy health check script
-COPY health-check.sh /usr/local/bin/health-check.sh
+COPY services/koji-worker/health-check.sh /usr/local/bin/health-check.sh
 RUN chmod +x /usr/local/bin/health-check.sh
 
 # Set ownership
@@ -59,11 +61,9 @@ RUN chown -R koji:koji /var/log/koji-worker \
     /var/cache/mock
 
 # Switch to koji user
-USER koji
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD /usr/local/bin/health-check.sh
+# USER koji
 
 # Start worker service
 CMD ["/usr/local/bin/worker-service.py"]
+
+# The end.

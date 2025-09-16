@@ -49,9 +49,9 @@ def setup_worker():
         # Create worker configuration
         worker_config = """
 [koji]
-server = http://koji-hub:8080/kojihub
-weburl = http://koji-web:8080
-topurl = http://koji-storage:8080
+server = https://koji-hub.koji.box/kojihub
+weburl = https://koji.box/
+topurl = https://koji.box/kojifiles
 
 [builder]
 workdir = /var/lib/koji-worker
