@@ -90,6 +90,10 @@ services:
       <<: [*common-database,
            *common-koji-admin]
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      # These are used in 00-postgres.sh to set the initial postgres configuration
+      DB_MAX_CONNECTIONS: ${DB_MAX_CONNECTIONS:-200}
+      DB_IDLE_IN_TRANSACTION_SESSION_TIMEOUT: ${DB_IDLE_IN_TRANSACTION_SESSION_TIMEOUT:-10min}
+      DB_IDLE_SESSION_TIMEOUT: ${DB_IDLE_SESSION_TIMEOUT:-0}
     volumes:
       - postgres_data:/var/lib/postgresql/data:Z
       - ./services/postgres/init.d:/docker-entrypoint-initdb.d:Z
