@@ -32,10 +32,10 @@ StoragePath = ${KOJI_TOP_DIR}
 StorageURL = ${KOJI_TOP_URL}
 
 # Debug mode
-KojiDebug = on
+KojiDebug = ${KOJI_DEBUG}
 
 # Logging
-LogLevel = INFO
+LogLevel = ${KOJI_LOG_LEVEL}
 LogFile = /var/log/koji-hub/
 
 # Security

@@ -203,7 +203,8 @@ services:
            *koji-hub-principals,
            *orch-koji-hub-claims]
       KOJI_HUB_URL: https://koji-hub.koji.box/kojihub  # override to bypass nginx
-
+      KOJI_DEBUG: ${KOJI_DEBUG:-off}
+      KOJI_LOG_LEVEL: ${KOJI_LOG_LEVEL:-INFO}
     volumes:
       - koji_storage:/mnt/koji:Z
       - ./services/koji-hub/init.d:/var/lib/koji-hub/hub-init.d:Z
