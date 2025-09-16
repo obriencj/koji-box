@@ -60,12 +60,4 @@ log "Launching startup scripts"
 su koji -c /usr/local/bin/startup.sh
 log "✓ startup scripts completed"
 
-log "Setting up signal handlers"
-trap 'kill -SIGINT "$HUB_PID" ; wait "$HUB_PID"' INT
-trap 'kill -SIGTERM "$HUB_PID" ; wait "$HUB_PID"' TERM
-trap 'kill -SIGUSR1 "$HUB_PID" ; wait "$HUB_PID"' USR1
-log "✓ Signal handlers set"
-
-wait $HUB_PID
-
 # The end.

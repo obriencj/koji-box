@@ -39,6 +39,6 @@ COPY services/koji-hub/httpd.conf.template /app/httpd.conf.template
 EXPOSE 80 443
 
 # Start hub service
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/usr/local/bin/entrypoint.sh"]
 
 # The end.
