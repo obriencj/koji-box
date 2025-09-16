@@ -30,10 +30,10 @@ def create_app():
     app.resource_manager.load_resource_mappings()
 
     # Register blueprints
-    from .v1 import bp as v1_bp
+    #from .v1 import bp as v1_bp
     from .v2 import bp as v2_bp
 
-    app.register_blueprint(v1_bp, url_prefix='/api/v1')
+    # app.register_blueprint(v1_bp, url_prefix='/api/v1')
     app.register_blueprint(v2_bp, url_prefix='/api/v2')
 
     return app
