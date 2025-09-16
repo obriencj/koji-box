@@ -27,6 +27,7 @@ run_init_scripts() {
     fi
 }
 
+cd $HOME
 run_init_scripts
 
 
