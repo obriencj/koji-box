@@ -31,6 +31,9 @@ MaxBuilds = ${KOJI_MAX_BUILDS}
 StoragePath = ${KOJI_TOP_DIR}
 StorageURL = ${KOJI_TOP_URL}
 
+# Debug mode
+KojiDebug = on
+
 # Logging
 LogLevel = INFO
 LogFile = /var/log/koji-hub/

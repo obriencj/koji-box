@@ -1,9 +1,14 @@
 ServerName koji-hub.koji.box
 
+# relatively small pool for this box
+# WSGIDaemonProcess koji-hub processes=5 threads=5 display-name=%{GROUP} inactivity-timeout=120
+
 # Global WSGI application configuration
 <Directory "/usr/share/koji-hub">
     Options ExecCGI
     SetHandler wsgi-script
+
+    # WSGIProcessGroup koji-hub
 
     WSGIApplicationGroup %{GLOBAL}
     # ^ works around a hub issue with OpenSSL
