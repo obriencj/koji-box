@@ -4,23 +4,20 @@ A containerized integration testing platform for the Koji build system. This pro
 
 ## Overview
 
-Boxed Koji creates a fully functional Koji build system with all necessary components:
+Boxed Koji creates a fully functional Koji build system with all necessary components. The project has recently migrated to a new **Orch Service** and **orch.sh tool** for comprehensive resource management.
 
 ### ✅ Working Services
 - **PostgreSQL Database** - Backend data storage
 - **KDC (Kerberos)** - Authentication service with realm KOJI.BOX
 - **Orch Service** - REST API for resource management with CA certificate support
-- **Koji Hub** - Central coordination service
-- **Koji Client** - CLI interface for testing
+- **Koji Hub** - Central coordination service (fully functional with orch integration)
 
 ### 🚧 In Progress Services
+- **Koji Client** - CLI interface (working on reliability improvements)
 - **Nginx Proxy** - Reverse proxy and static content server
 - **Koji Web** - Web frontend interface
+- **Koji Workers** - Build execution nodes
 - **Test Runner** - Automated testing framework
-
-### 📋 Planned Services
-- **Koji Worker(s)** - Build execution nodes
-- **Storage Service** - NFS + HTTP file storage
 
 ## Quick Start
 
@@ -28,23 +25,51 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
    ```bash
    git clone <repository-url>
    cd koji-boxed
-   cp .env.example .env
+   cp env.default .env
    ```
 
-2. **Start the environment**:
+2. **Configure container socket** (see SOCKET_README.md for details):
+   ```bash
+   # For rootless podman (recommended)
+   echo "PODMAN_SOCKET=/run/user/$UID/podman/podman.sock" >> .env
+
+   # For root podman
+   echo "PODMAN_SOCKET=/var/run/podman.sock" >> .env
+
+   # For Docker
+   echo "PODMAN_SOCKET=/var/run/docker.sock" >> .env
+   ```
+
+3. **Start the environment**:
    ```bash
    make quick-start
    ```
 
-3. **Access services**:
+4. **Access services**:
    - **Working Services**:
-     - Koji Hub: http://koji-hub.koji.box:80 (or via nginx when ready)
+     - Koji Hub: http://koji-hub.koji.box:80 (fully functional with orch integration)
      - Orch Service: http://orch.koji.box:5000 (resource management with CA support)
      - KDC: kdc.koji.box:88 (Kerberos)
      - PostgreSQL: postgres.koji.box:5432
    - **In Progress** (coming soon):
+     - Koji Client: CLI interface (reliability improvements in progress)
      - Main Entry Point: http://localhost:8080 (nginx proxy)
      - Koji Web: http://localhost:8081 (or http://koji-web.koji.box:8081)
+     - Koji Workers: Build execution nodes (via `make up --profile workers`)
+
+## Recent Updates
+
+### 🚀 New Orch Service Migration
+
+The project has recently migrated to a comprehensive **Orch Service** and **orch.sh tool** for resource management:
+
+- **Enhanced Security**: IP-based container identification and resource checkout system
+- **CA Certificate Support**: Built-in Certificate Authority for SSL certificate management
+- **UUID-based Access**: Resources accessed via UUIDs for enhanced security
+- **Backward Compatibility**: V1 API maintained for existing integrations
+- **Comprehensive CLI**: `orch.sh` tool for easy resource management
+
+See the [Orch Service README](services/orch/README.md) for detailed documentation.
 
 ## Prerequisites
 
@@ -52,6 +77,7 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
 - Git
 - Make
 - Internet connection (for downloading Koji source)
+- Container socket access (see SOCKET_README.md for configuration)
 
 ## Project Structure
 
@@ -66,17 +92,17 @@ koji-boxed/
 │   ├── postgres/                    # Database data
 │   ├── keytabs/                     # Principal keytabs
 │   └── logs/                        # Service logs
-├── services /                       # Individual service Dockerfiles
-│   ├── common/                      # Shared components
+├── services/                        # Individual service Dockerfiles
+│   ├── common/                      # Shared components (includes orch.sh tool)
 │   ├── kdc/                         # ✅ Kerberos KDC service
-│   ├── koji-hub/                    # ✅ Koji Hub service
-│   ├── koji-client/                 # ✅ Koji CLI client
+│   ├── koji-hub/                    # ✅ Koji Hub service (with orch integration)
+│   ├── koji-client/                 # 🚧 Koji CLI client (reliability improvements)
 │   ├── orch/                        # ✅ Orch resource management service
 │   ├── postgres/                    # ✅ PostgreSQL database
-│   ├── koji-worker/                 # 📋 Planned: Build workers
-│   ├── koji-web/                    # 🚧 In Progress: Web interface
-│   ├── nginx/                       # 🚧 In Progress: Reverse proxy
-│   └── test-runner/                 # 🚧 In Progress: Test automation
+│   ├── koji-worker/                 # 🚧 Build workers (in progress)
+│   ├── koji-web/                    # 🚧 Web interface (in progress)
+│   ├── nginx/                       # 🚧 Reverse proxy (in progress)
+│   └── test-runner/                 # 🚧 Test automation (in progress)
 └── tests/                           # Integration tests
     ├── test-scripts/
     └── expected-results/
@@ -118,7 +144,7 @@ koji-boxed/
 
 ### Orch Service
 
-- `make logs-orch-service` - Show logs for Orch Service
+- `make logs-orch` - Show logs for Orch Service
 
 The Orch Service is a comprehensive resource management system that provides secure, container-based access control for Koji infrastructure resources. It includes:
 
@@ -299,7 +325,7 @@ make clean-data
 
 4. **Orch service issues**:
    ```bash
-   make logs-orch-service
+   make logs-orch
    curl http://orch.koji.box:5000/api/v2/status/health
    ```
 
@@ -312,12 +338,13 @@ make clean-data
 ### Service-Specific Troubleshooting
 
 **Working Services:**
-- PostgreSQL, KDC, Orch Service, Koji Hub, Koji Client are fully functional
+- PostgreSQL, KDC, Orch Service, Koji Hub are fully functional
 - Check logs with `make logs-<service>` for specific issues
 
 **In Progress Services:**
-- Nginx, Koji Web, Test Runner may have configuration issues
-- These services are being actively developed and tested
+- Koji Client: Working on reliability improvements
+- Koji Workers: Available via `make up --profile workers` but still in development
+- Nginx, Koji Web, Test Runner: Configuration and integration in progress
 
 ### Logs
 
@@ -351,11 +378,11 @@ All services run on a custom bridge network (`koji-network`) with subnet `172.20
 
 **Current Working Architecture:**
 ```
-postgres → koji-hub ←─── koji-client
-    ↓         ↓
-   kdc ←──────┘
-    ↓
-orch-service ←─── koji-client
+postgres → koji-hub ←─── orch-service
+    ↓         ↓              ↓
+   kdc ←──────┘              ↓
+    ↓                       ↓
+orch-service ←─── koji-client (reliability improvements)
 ```
 
 **Planned Full Architecture:**
@@ -406,12 +433,19 @@ The nginx proxy will provide a unified entry point with the following planned ro
 - **Access**: `koji-hub.koji.box:80`
 - **Features**: User management, build coordination, API endpoints
 
-### ✅ Koji Client
-- **Status**: Fully functional
+### 🚧 Koji Client
+- **Status**: Working on reliability improvements
 - **Purpose**: CLI interface for testing and administration
 - **Features**: Kerberos authentication, Koji command execution
+- **Issues**: Reliability improvements in progress
 
 ## Services In Progress
+
+### 🚧 Koji Workers
+- **Status**: Development in progress
+- **Purpose**: Build execution nodes
+- **Access**: Available via `make up --profile workers`
+- **Features**: Build execution, resource management via orch service
 
 ### 🚧 Nginx Proxy
 - **Status**: Configuration in progress

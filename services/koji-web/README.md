@@ -46,7 +46,7 @@ Health check script for service monitoring.
 ## Dependencies
 
 - Koji Hub service (for API access)
-- Keytab Service (for authentication)
+- Orch Service (for authentication and resource management)
 - Nginx service (for unified access)
 
 ## Development Status
@@ -61,7 +61,7 @@ Health check script for service monitoring.
 - `KOJI_HUB_URL`: Backend Koji Hub URL
 - `KOJI_WEB_URL`: Web interface URL
 - `KRB5_REALM`: Kerberos realm
-- `KEYTAB_SERVICE_URL`: Keytab service URL
+- `ORCH_SERVICE_URL`: Orch service URL for resource management
 
 ## Troubleshooting
 
@@ -79,3 +79,31 @@ If you encounter issues with the Koji Web service:
 - Advanced search capabilities
 - Mobile-responsive design
 - User preference management
+- Integration with orch service for enhanced security
+- SSL/TLS support via orch service CA certificates
+
+## Integration with Orch Service
+
+The koji-web service integrates with the orch service for:
+
+- **Authentication**: Enhanced authentication via orch service resource management
+- **Security**: Improved security through orch service resource checkout system
+- **Resource Management**: Coordinated resource management with other services
+- **SSL/TLS**: Certificate management via orch service CA
+
+### Resource Management
+
+```bash
+# Get web service keytab from orch service
+./services/common/orch.sh checkout <web-keytab-uuid> /etc/koji-web/web.keytab
+
+# Get SSL certificate for web service
+./services/common/orch.sh checkout <web-cert-uuid> /etc/koji-web/ssl/web.crt
+```
+
+## Related Documentation
+
+- [Main Project README](../../README.md)
+- [Orch Service README](../orch/README.md)
+- [Koji Hub Service README](../koji-hub/README.md)
+- [Nginx Service README](../nginx/README.md)
