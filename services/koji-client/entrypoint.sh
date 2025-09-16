@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
-
 
 echo "Setting up Kerberos configuration..."
 envsubst < /etc/krb5.conf.template > /etc/krb5.conf
@@ -14,6 +12,8 @@ echo "✓ Koji configuration created"
 
 # Run main function
 echo "Running startup.sh as friend user..."
-exec su friend /app/startup.sh
+su friend /app/startup.sh
+
+exec tail -f /dev/null
 
 # The end.

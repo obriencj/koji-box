@@ -29,9 +29,5 @@ run_init_scripts() {
 
 run_init_scripts
 
-# Start bash shell
-echo "Welcome friend! Type 'exit' to quit"
-exec /bin/bash
-
 
 # The end.

@@ -10,17 +10,8 @@ CLIENT_KEYTAB_PATH="$HOME/friend.keytab"
 ADMIN_KEYTAB_PATH="$HOME/superfriend.keytab"
 
 # Fetch keytab from orch service using admin keytab (since no client-specific keytab exists)
-echo "Fetching keytab for principal: $KOJI_CLIENT_PRINC"
-if ! /app/orch.sh checkout ${KOJI_CLIENT_KEYTAB} "$CLIENT_KEYTAB_PATH"; then
-    echo "ERROR: Failed to fetch keytab for $KOJI_CLIENT_PRINC"
-    exit 1
-fi
-
-echo "Fetching keytab for principal: $KOJI_CLIENT_ADMIN_PRINC"
-if ! /app/orch.sh checkout ${KOJI_CLIENT_ADMIN_KEYTAB} "$ADMIN_KEYTAB_PATH"; then
-    echo "ERROR: Failed to fetch keytab for $KOJI_CLIENT_ADMIN_PRINC"
-    exit 1
-fi
+/app/orch.sh checkout "${KOJI_CLIENT_KEYTAB}" "$CLIENT_KEYTAB_PATH"
+/app/orch.sh checkout "${KOJI_CLIENT_ADMIN_KEYTAB}" "$ADMIN_KEYTAB_PATH"
 
 # Set proper permissions on keytab
 chmod 600 "$CLIENT_KEYTAB_PATH"

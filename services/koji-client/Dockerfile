@@ -2,23 +2,23 @@ FROM python:3.11-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
-    gcc \
-    musl-dev \
-    libffi-dev \
-    openssl-dev \
-    curl \
-    jq \
     bash \
-    shadow \
-    util-linux \
-    git \
-    make \
-    gcc \
+    curl \
+    envsubst \
     g++ \
-    python3-dev \
-    krb5-dev \
+    gcc \
+    git \
+    jq \
     krb5 \
-    envsubst
+    krb5-dev \
+    libffi-dev \
+    make \
+    musl-dev \
+    openssl \
+    openssl-dev \
+    python3-dev \
+    shadow \
+    util-linux
 
 # Install Python packages
 RUN pip install --no-cache-dir \

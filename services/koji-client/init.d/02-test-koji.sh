@@ -3,15 +3,14 @@
 
 echo "Configuring Koji client..."
 mkdir -p $HOME/.koji
-echo << EOF > $HOME/.koji/config
+cat << EOF > $HOME/.koji/config
 [koji]
 username = friend
-
-[koji-admin]
-username = superfriend
 EOF
+sed 's,\[koji],[koji-admin]\nusername = superfriend,g' /etc/koji.conf >> $HOME/.koji/config
 
 
+mkdir -p $HOME/.local/bin
 echo "PATH=$HOME/.local/bin:$PATH" >> $HOME/.bashrc
 chmod +x $HOME/.bashrc
 ln -s `which koji` $HOME/.local/bin/koji-admin

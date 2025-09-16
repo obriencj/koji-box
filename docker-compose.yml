@@ -14,7 +14,7 @@ x-common-kerberos: &common-kerberos
   KRB5_ADMIN_SERVER: kdc.koji.box
 
 x-common-koji: &common-koji
-  KOJI_HUB_URL: ${KOJI_HUB_URL:-http://koji.box/kojihub}
+  KOJI_HUB_URL: ${KOJI_HUB_URL:-https://koji-hub.koji.box/kojihub}
   KOJI_WEB_URL: ${KOJI_WEB_URL:-http://koji.box/}
   KOJI_TOP_URL: ${KOJI_TOP_URL:-http://koji.box/kojifiles}
   KOJI_TOP_DIR: ${KOJI_TOP_DIR:-/mnt/koji}
@@ -302,8 +302,8 @@ services:
     depends_on:
       orch-service:
         condition: service_healthy
-      nginx:
-        condition: service_healthy
+      # nginx:
+      #   condition: service_healthy
       koji-hub:
         condition: service_healthy
     environment:
@@ -324,8 +324,6 @@ services:
           memory: 256m
         reservations:
           memory: 128m
-    profiles:
-      - "shell"
 
   nginx:
     image: nginx:alpine

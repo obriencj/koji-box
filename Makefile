@@ -124,26 +124,29 @@ test: ## Run integration tests
 		echo -e "$(YELLOW)No test scripts found$(NC)"; \
 	fi
 
+shell-client: ## Open shell in Koji Client container
+	podman-compose exec --user friend koji-client /bin/bash
+
 shell-hub: ## Open shell in Koji Hub container
-	podman-compose exec -it koji-hub /bin/bash
+	podman-compose exec koji-hub /bin/bash
 
 shell-worker: ## Open shell in Koji Worker container
-	podman-compose exec -it koji-worker /bin/bash
+	podman-compose exec koji-worker /bin/bash
 
 shell-web: ## Open shell in Koji Web container
-	podman-compose exec -it koji-web /bin/bash
+	podman-compose exec koji-web /bin/bash
 
 shell-postgres: ## Open shell in PostgreSQL container
-	podman-compose exec -it postgres /bin/bash
+	podman-compose exec postgres /bin/bash
 
 shell-kdc: ## Open shell in KDC container
-	podman-compose exec -it kdc /bin/bash
+	podman-compose exec kdc /bin/bash
 
 shell-nginx: ## Open shell in Nginx container
-	podman-compose exec -it nginx /bin/bash
+	podman-compose exec nginx /bin/bash
 
 shell-orch: ## Open shell in Orch container
-	podman-compose exec -it orch-service /bin/bash
+	podman-compose exec orch-service /bin/bash
 
 purge: ## Remove all containers and images
 	@echo -e "$(BLUE)Cleaning up containers, images, and volumes...$(NC)"

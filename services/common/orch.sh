@@ -283,6 +283,7 @@ function main() {
             make_request "GET" "${ORCH_SERVICE_URL}/api/v2/docs/" "" true
             ;;
         ca-cert)
+            output_file="$uuid"
             echo -e "${BLUE}Getting CA certificate...${NC}"
             if make_request "GET" "${ORCH_SERVICE_URL}/api/v2/ca/certificate" "$output_file"; then
                 echo -e "${GREEN}✓${NC} CA certificate retrieved successfully"
