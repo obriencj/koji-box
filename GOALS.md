@@ -4,8 +4,8 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 
 ## 🎯 Core Platform Goals
 
-### ✅ **DONE** - Containerized Koji Environment
-- [x] Create complete containerized Koji build system
+### 🚧 **IN PROGRESS** - Containerized Koji Environment
+- [ ] Create complete containerized Koji build system (hub, workers, and web)
 - [x] Implement Docker Compose orchestration with Podman support
 - [x] Establish custom bridge network architecture (`koji-network`)
 - [x] Provide reproducible, isolated testing environment
@@ -34,13 +34,6 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 - [x] Resource checkout/release system
 - [x] Dead container cleanup automation
 - [x] CLI tool (`orch.sh`) for easy management
-
-### 🚧 **IN PROGRESS** - Enhanced Security Features
-- [ ] Implement role-based access control (RBAC)
-- [ ] Add audit logging for all resource operations
-- [ ] Certificate rotation and renewal automation
-- [ ] Multi-tenant resource isolation
-- [ ] Advanced container security policies
 
 ## 🏗️ Core Services Implementation
 
@@ -113,14 +106,6 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 
 ## 🚀 Performance & Scalability
 
-### 📋 **PLANNED** - Performance Optimization
-- [ ] Resource usage monitoring and optimization
-- [ ] Container resource limits and reservations
-- [ ] Database query optimization
-- [ ] Caching strategies for frequently accessed data
-- [ ] Build parallelization and optimization
-- [ ] Network performance tuning
-
 ### 📋 **PLANNED** - Scalability Features
 - [ ] Horizontal worker scaling
 - [ ] Load balancing and distribution
@@ -149,10 +134,7 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 ### 📋 **PLANNED** - Advanced Maintenance
 - [ ] Automated updates and patching
 - [ ] Configuration management system
-- [ ] Service mesh implementation
-- [ ] Advanced backup strategies
 - [ ] Multi-environment deployment
-- [ ] Infrastructure as Code (IaC) implementation
 
 ## 📊 Monitoring & Observability
 
@@ -201,31 +183,12 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 - [ ] Best practices documentation
 - [ ] Video tutorials and walkthroughs
 
-### 📋 **PLANNED** - User Experience
-- [ ] Web-based administration interface
-- [ ] Command-line tool improvements
-- [ ] Interactive setup wizard
-- [ ] Configuration validation tools
-- [ ] User onboarding automation
-- [ ] Self-service capabilities
-
 ## 🎯 Long-term Vision
 
-### 📋 **PLANNED** - Platform Evolution
-- [ ] Multi-cloud deployment support
-- [ ] Kubernetes orchestration option
-- [ ] Microservices architecture refinement
-- [ ] Event-driven architecture implementation
-- [ ] Machine learning for build optimization
-- [ ] Community plugin system
 
 ### 📋 **PLANNED** - Ecosystem Expansion
-- [ ] Support for multiple build systems (beyond Koji)
-- [ ] Integration with package managers (RPM, DEB, etc.)
-- [ ] Multi-architecture build farms
-- [ ] Compliance and security certifications
-- [ ] Commercial support and enterprise features
-- [ ] Open source community building
+- [ ] Integration with content generators (atomic reactor, osbuild, pnc)
+- [ ] Multi-architecture builds
 
 ---
 
