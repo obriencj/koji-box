@@ -2,19 +2,8 @@
 
 
 echo "Configuring Koji client..."
-mkdir -p $HOME/.koji
-cat << EOF > $HOME/.koji/config
-[koji]
-username = friend
-EOF
-sed 's,\[koji],[koji-admin]\nusername = superfriend,g' /etc/koji.conf >> $HOME/.koji/config
 
-
-mkdir -p $HOME/.local/bin
-echo "PATH=$HOME/.local/bin:$PATH" >> $HOME/.bashrc
-chmod +x $HOME/.bashrc
-ln -s `which koji` $HOME/.local/bin/koji-admin
-
+echo "export REQUESTS_CA_BUNDLE=${REQUESTS_CA_BUNDLE-/etc/ssl/certs/ca-certificates.crt}" >> $HOME/.bashrc
 
 # Test Koji client functionality
 echo "Testing Koji client functionality..."

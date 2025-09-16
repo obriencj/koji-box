@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir \
 
 # Create koji user and group
 RUN addgroup -g 1000 friend && \
-    adduser -D -u 1000 -G friend friend
+    adduser -D -u 1000 -G friend friend -s /bin/bash -h /home/friend
 
 # Create directories
 RUN mkdir -p /etc/koji \

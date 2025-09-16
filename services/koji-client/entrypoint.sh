@@ -9,6 +9,7 @@ envsubst < /etc/koji.conf.template > /etc/koji.conf
 echo "✓ Koji configuration created"
 
 /app/orch.sh ca-install
+export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 # Run main function
 echo "Running startup.sh as friend user..."

@@ -255,6 +255,8 @@ services:
           memory: ${WORKER_MEMORY_LIMIT:-1g}
         reservations:
           memory: 512m
+    scales:
+      koji-worker: ${KOJI_WORKER_COUNT:-0}
     profiles:
       - "workers"
 

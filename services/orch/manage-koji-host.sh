@@ -37,7 +37,10 @@ function main() {
     fi
 
     setup_kinit
+
+    # setup the CA bundle
     /app/orch.sh ca-install
+    export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
     echo "Managing Koji host: $WORKER_NAME"
 
