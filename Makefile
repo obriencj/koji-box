@@ -127,7 +127,7 @@ test: ## Run integration tests
 	fi
 
 shell-client: ## Open shell in Koji Client container
-	podman-compose exec --user koji koji-client /bin/bash
+	podman-compose exec --user koji --workdir /home/koji koji-client /bin/bash
 
 shell-hub: ## Open shell in Koji Hub container
 	podman-compose exec koji-hub /bin/bash
