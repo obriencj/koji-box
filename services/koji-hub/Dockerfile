@@ -13,6 +13,7 @@ RUN dnf install -y \
     shadow-utils \
     util-linux \
     git \
+    jq \
     make \
     gcc-c++ \
     krb5-devel \

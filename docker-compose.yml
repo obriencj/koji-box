@@ -82,7 +82,7 @@ services:
            *common-koji-admin]
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data:Z
+      - postgres_data:/var/lib/postgresql/data:Z
       - ./services/postgres/init.d:/docker-entrypoint-initdb.d:Z
       - ./koji-src/:/mnt/koji-src:Z
     expose:
@@ -127,7 +127,7 @@ services:
       test: ["CMD-SHELL", "/bin/health-check.sh"]
       interval: 10s
       timeout: 10s
-      retries: 3
+      retries: 10
     deploy:
       resources:
         limits:
@@ -160,7 +160,7 @@ services:
     volumes:
       # see SOCKET_README.md for details on using PODMAN_SOCKET with rootless podman
       - ${PODMAN_SOCKET:-/var/run/podman.sock}:/var/run/docker.sock
-      - ./data/orch:/mnt/data:Z
+      - orch_data:/mnt/data:Z
       - ./services/orch/templates/resource_mapping.yaml.template:/app/resource_mapping.yaml.template:ro,Z
     networks:
       koji-network:
@@ -234,7 +234,7 @@ services:
       orch-service:
         condition: service_healthy
     environment:
-      <<: [*common-keytab-service,
+      <<: [*common-orch-service,
            *common-koji,
            *common-kerberos]
     volumes:
@@ -255,6 +255,8 @@ services:
           memory: ${WORKER_MEMORY_LIMIT:-1g}
         reservations:
           memory: 512m
+    profiles:
+      - "workers"
 
   koji-web:
     build:
@@ -289,6 +291,8 @@ services:
           memory: ${WEB_MEMORY_LIMIT:-256m}
         reservations:
           memory: 128m
+    profiles:
+      - "web"
 
   koji-client:
     build:
@@ -303,9 +307,9 @@ services:
       koji-hub:
         condition: service_healthy
     environment:
-      <<: [*common-orch-service,
-           *common-kerberos,
+      <<: [*common-kerberos,
            *common-koji,
+           *common-orch-service,
            *orch-koji-client-keytabs]
     volumes:
       - koji_storage:/mnt/koji:ro
@@ -322,6 +326,7 @@ services:
           memory: 128m
     profiles:
       - "shell"
+
   nginx:
     image: nginx:alpine
     container_name: koji-boxed-nginx
@@ -356,6 +361,7 @@ services:
         reservations:
           memory: 64m
 
+
 networks:
   koji-network:
     driver: bridge
@@ -363,12 +369,15 @@ networks:
       config:
         - subnet: ${KOJI_SUBNET:-172.20.0.0/16}
 
+
 volumes:
   postgres_data:
     driver: local
   koji_storage:
     driver: local
   kdc_data:
+    driver: local
+  orch_data:
     driver: local
 
 

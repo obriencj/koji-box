@@ -1,5 +1,5 @@
 #! /bin/bash
 
-psql -U koji -d koji -f /mnt/koji-src/schemas/schema.sql
+psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f /mnt/koji-src/schemas/schema.sql
 
 # The end.

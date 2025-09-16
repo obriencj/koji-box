@@ -2,8 +2,8 @@
 
 
 echo "Configuring Koji client..."
-mkdir -p ~/.koji
-echo << EOF > ~/.koji/config
+mkdir -p $HOME/.koji
+echo << EOF > $HOME/.koji/config
 [koji]
 username = friend
 
@@ -11,8 +11,10 @@ username = friend
 username = superfriend
 EOF
 
-echo "PATH=./bin:$PATH" >> ~/.bashrc
-ln -s `which koji` ~/.local/bin/koji-admin
+
+echo "PATH=$HOME/.local/bin:$PATH" >> $HOME/.bashrc
+chmod +x $HOME/.bashrc
+ln -s `which koji` $HOME/.local/bin/koji-admin
 
 
 # Test Koji client functionality
@@ -28,7 +30,7 @@ if command -v koji >/dev/null 2>&1; then
 
     # Test koji list-hosts (if authenticated)
     echo "Testing koji-admin list-hosts:"
-    ~/.local/bin/koji-admin list-hosts || echo "Could not list hosts (may need authentication)"
+    $HOME/.local/bin/koji-admin list-hosts || echo "Could not list hosts (may need authentication)"
 
 else
     echo "✗ koji command is not available"

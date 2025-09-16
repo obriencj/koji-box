@@ -14,6 +14,6 @@ echo "✓ Koji configuration created"
 
 # Run main function
 echo "Running startup.sh as friend user..."
-exec su friend - /app/startup.sh
+exec su friend /app/startup.sh
 
 # The end.

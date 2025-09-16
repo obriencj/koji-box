@@ -57,16 +57,14 @@ build-fast: pull-koji ## Build all container images (cached)
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) build
 	@echo -e "$(GREEN)All images built successfully$(NC)"
 
-up: ## Start all services
+up: down ## Start all services
 	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up -d
 	@echo -e "$(GREEN)Koji environment started$(NC)"
 
-launch: ## Start all services in the foreground
+launch: down ## Start all services in the foreground
 	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up --build
-
-relaunch: down launch ## Restart all services in the foreground
 
 down: ## Stop all services
 	@echo -e "$(BLUE)Stopping Koji environment...$(NC)"
@@ -147,20 +145,17 @@ shell-nginx: ## Open shell in Nginx container
 shell-orch: ## Open shell in Orch container
 	podman-compose exec -it orch-service /bin/bash
 
-clean: ## Remove all containers and images
-	@echo -e "$(BLUE)Cleaning up...$(NC)"
-	podman-compose down -v --rmi all
-	podman system prune -f
+purge: ## Remove all containers and images
+	@echo -e "$(BLUE)Cleaning up containers, images, and volumes...$(NC)"
+	podman-compose down --volumes --rmi all
 	@echo -e "$(GREEN)Cleanup completed$(NC)"
 
-clean-data: ## Remove all data volumes
-	@echo -e "$(BLUE)Removing data volumes...$(NC)"
-	rm -rf data/postgres/*
-	rm -rf data/koji-storage/*
-	rm -rf data/logs/*
-	@echo -e "$(GREEN)Data volumes cleaned$(NC)"
+clean-volumes: ## Remove all volumes
+	@echo -e "$(BLUE)Cleaning up containers and volumes...$(NC)"
+	podman-compose down --volumes
+	@echo -e "$(GREEN)Volumes cleaned up$(NC)"
 
-rebuild: clean build ## Force rebuild all images
+rebuild: purge build ## Force rebuild all images
 
 dev: up ## Start development environment with full setup
 

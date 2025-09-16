@@ -7,6 +7,7 @@ RUN apk add --no-cache \
     libffi-dev \
     openssl-dev \
     curl \
+    jq \
     bash \
     shadow \
     util-linux \

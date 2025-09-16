@@ -5,7 +5,7 @@ KOJI_ADMIN_NAME=${KOJI_ADMIN_NAME:-hub-admin}
 KOJI_ADMIN_PRINC=${KOJI_ADMIN_PRINC:-${KOJI_ADMIN_NAME}@${KRB5_REALM}}
 
 echo "Creating user ${KOJI_ADMIN_NAME} (${KOJI_ADMIN_PRINC}) and granting admin permissions"
-psql -U koji -d koji << EOF
+psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} << EOF
 insert into users (name, usertype, status) values ('${KOJI_ADMIN_NAME}', 0, 0);
 insert into user_krb_principals (user_id, krb_principal)
       select users.id, '${KOJI_ADMIN_PRINC}' from users
