@@ -1,8 +1,7 @@
 #!/bin/bash
-"""
-Koji Worker Service
-Build worker for Koji build system
-"""
+
+# Koji Worker Service
+# Build worker for Koji build system
 
 set -euo pipefail
 

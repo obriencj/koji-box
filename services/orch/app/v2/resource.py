@@ -5,6 +5,7 @@ Implements secure resource checkout system with comprehensive validation
 """
 
 import logging
+import socket
 from flask import Blueprint, request, jsonify, send_file, current_app
 
 from ..common.validators import ResourceValidator, SecurityValidator, RequestValidator
@@ -34,6 +35,8 @@ def checkout_resource(uuid):
 
         # Get client IP for container identification
         client_ip = request.remote_addr
+        if client_ip == '127.0.0.1':
+            client_ip = socket.gethostbyname(socket.gethostname())
 
         # Validate IP address format
         valid, error_msg = ResourceValidator.validate_ip_address(client_ip)

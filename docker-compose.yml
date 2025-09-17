@@ -80,6 +80,7 @@ services:
       context: .
       dockerfile: services/common/Dockerfile
     image: koji-boxed-common
+    container_name: koji-boxed-common
     scales:
       common: 0
 

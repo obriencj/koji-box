@@ -186,7 +186,7 @@ class ResourceManager:
             cmd = ['/app/manage-koji-host.sh', worker_name, full_principal_name]
             if arch:
                 cmd.append(arch)
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(cmd, capture_output=False, text=True, timeout=60)
             if result.returncode != 0:
                 logger.error(f"Failed to manage Koji host {worker_name}: {result.stderr}")
                 return False

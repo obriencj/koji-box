@@ -32,7 +32,7 @@ echo "✓ Resource mapping generated"
 
 # Validate generated mapping
 echo "Validating resource mapping..."
-if ! python -c "import yaml; yaml.safe_load(open('/app/resource_mapping.yaml'))" 2>/dev/null; then
+if ! python3 -c "import yaml; yaml.safe_load(open('/app/resource_mapping.yaml'))" ; then
     echo "ERROR: Generated resource mapping is not valid YAML"
     exit 1
 fi
@@ -46,6 +46,21 @@ echo "✓ Directories created"
 
 echo "Orch service initialization complete"
 
-exec gunicorn -b 0.0.0.0:5000 app:app
+python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app &
+ORCH_PID=$!
+
+for i in {1..10}; do
+    if curl -s http://localhost:5000/health > /dev/null; then
+        break
+    fi
+    sleep 2
+done
+
+# Use orch to configure orch
+/app/orch.sh ca-install
+/app/orch.sh checkout ${ORCH_KEYTAB} /app/orch.keytab
+
+
+wait $ORCH_PID
 
 # The end.

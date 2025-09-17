@@ -33,7 +33,7 @@ ${KOJI_CLIENT_ADMIN_KEYTAB}:
 
 ${KOJI_WORKER_KEYTAB}:
   type: worker
-  resource: koji-worker-${SCALE_INDEX}
+  resource: koji-worker
   description: Koji worker keytab (scaled resource)
 
 ${KOJI_HUB_CERT}:
