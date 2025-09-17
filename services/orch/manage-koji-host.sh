@@ -30,25 +30,31 @@ function cleanup_kinit() {
 function main() {
 
     local WORKER_NAME="$1"
+    local FULL_PRINCIPAL_NAME="$2"
+    local WORKER_ARCH="$3-x86_64"
 
     if [ -z "$WORKER_NAME" ]; then
         echo "ERROR: Worker name required"
         exit 1
     fi
 
+    if [ -z "$FULL_PRINCIPAL_NAME" ]; then
+        echo "ERROR: Full principal name required"
+        exit 1
+    fi
+
+    # we ourselves need to be authenticated to the KDC to be able to manage the host, using the koji client.
     setup_kinit
 
-    # setup the CA bundle
+    # we'll need to install the CA bundle as well.
     /app/orch.sh ca-install
-    export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
     echo "Managing Koji host: $WORKER_NAME"
 
-    # TODO: Implement actual Koji host management
-    # This would typically involve:
-    # 1. Checking if host exists in Koji
-    # 2. Creating host if it doesn't exist
-    # 3. Configuring host settings
+    local HOSTINFO=$(koji --noauth call --json-output getUser "${FULL_PRINCIPAL_NAME}")
+    if [ "$HOSTINFO" == "null" ]; then
+        koji add-host "${WORKER_NAME}" "${WORKER_ARCH}" --krb-principal "${FULL_PRINCIPAL_NAME}"
+    fi
 
     echo "✓ Koji host $WORKER_NAME managed successfully"
 

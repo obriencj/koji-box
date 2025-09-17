@@ -179,10 +179,10 @@ class ResourceManager:
             logger.error(f"Error creating self-signed certificate for {cn}: {e}")
             return None, None
 
-    def manage_koji_host(self, worker_name: str) -> bool:
+    def manage_koji_host(self, worker_name: str, full_principal_name: str) -> bool:
         """Manage Koji host using the shell script"""
         try:
-            cmd = ['/app/manage-koji-host.sh', worker_name]
+            cmd = ['/app/manage-koji-host.sh', worker_name, full_principal_name]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             if result.returncode != 0:
                 logger.error(f"Failed to manage Koji host {worker_name}: {result.stderr}")
@@ -229,7 +229,7 @@ class ResourceManager:
         else:
             actual_worker_name = worker_name
 
-        principal_name = f"koji/{actual_worker_name}.koji.box"
+        principal_name = f"worker/{actual_worker_name}"
         full_principal_name = f"{principal_name}@{self.krb5_realm}"
 
         # Ensure principal exists
@@ -243,7 +243,7 @@ class ResourceManager:
             return None
 
         # Register as Koji host
-        if not self.manage_koji_host(actual_worker_name):
+        if not self.manage_koji_host(actual_worker_name, full_principal_name):
             logger.warning(f"Failed to register Koji host {actual_worker_name}")
 
         return keytab_path
