@@ -25,11 +25,11 @@ RUN dnf install -qy dnf-plugins-core epel-release && \
 WORKDIR /build-tini
 RUN mkdir -p /build-tini/SRPMS /build-tini/RPMS
 
-COPY --from=tini-srpm /tini-*.src.rpm /build-tini/SRPMS/tini-*.src.rpm
+COPY --from=tini-srpm /tini-*.src.rpm /build-tini/SRPMS/
 
 RUN dnf install -qy rpm-build && \
     dnf builddep -qy /build-tini/SRPMS/tini-*.src.rpm && \
-    rpmbuild -rb /build-tini/SRPMS/tini-*.src.rpm  && \
+    rpmbuild --rebuild /build-tini/SRPMS/tini-*.src.rpm  && \
     mv /root/rpmbuild/RPMS/*/*.rpm /build-tini/RPMS/
 
 RUN ls /build-tini/RPMS/
