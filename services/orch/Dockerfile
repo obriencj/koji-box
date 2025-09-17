@@ -4,11 +4,11 @@ FROM koji-boxed-common
 RUN dnf install -y \
     python3-flask \
     python3-gunicorn \
+    python3-podman \
     python3-pyyaml
 
 # Install Python dependencies
 COPY services/orch/requirements.txt /app/
-RUN python3 -m pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy application code
 COPY services/orch/app/ /app/app/

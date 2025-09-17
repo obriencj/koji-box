@@ -5,25 +5,20 @@ RUN dnf install -qy dnf-plugins-core epel-release && \
     dnf config-manager --set-enabled crb && \
     dnf install -qy \
     bash \
-    gcc \
-    gcc-c++ \
+    diffutils \
     gettext \
     git \
-    glibc-devel \
     jq \
-    krb5-devel \
     krb5-workstation \
-    libffi-devel \
     make \
     openssl \
-    openssl-devel \
-    postgresql-devel \
     python3 \
     python3-dateutil \
     python3-defusedxml \
     python3-devel \
     python3-gssapi \
     python3-jinja2 \
+    python3-pyOpenSSL \
     python3-pip \
     python3-psycopg2 \
     python3-requests \
@@ -33,16 +28,9 @@ RUN dnf install -qy dnf-plugins-core epel-release && \
     python3-wheel \
     shadow-utils \
     tini \
-    util-linux && \
+    util-linux \
+    which && \
     dnf clean all
-
-# Install common Python packages
-RUN pip install --no-cache-dir \
-    psycopg2-binary \
-    sqlalchemy \
-    requests \
-    cryptography \
-    pyopenssl
 
 # Create koji user and group with consistent IDs
 RUN groupadd -g 1000 koji && \
