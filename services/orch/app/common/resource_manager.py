@@ -196,13 +196,13 @@ class ResourceManager:
             logger.error(f"Error managing Koji host {worker_name}: {e}")
             return False
 
-    def get_or_create_resource(self, resource_type: str, actual_resource_name: str, scale_index: int = None) -> Optional[Path]:
+    def get_or_create_resource(self, resource_type: str, actual_resource_name: str) -> Optional[Path]:
         """Get or create a resource based on type and name"""
         try:
             if resource_type == "principal":
                 return self._get_or_create_principal(actual_resource_name)
             elif resource_type == "worker":
-                return self._get_or_create_worker(actual_resource_name, scale_index)
+                return self._get_or_create_worker(actual_resource_name)
             elif resource_type == "cert":
                 return self._get_or_create_certificate(actual_resource_name)
             elif resource_type == "key":
@@ -224,30 +224,25 @@ class ResourceManager:
         # Create keytab
         return self.create_keytab(principal_name)
 
-    def _get_or_create_worker(self, worker_name: str, scale_index: int = None, arch: str = None) -> Optional[Path]:
+    def _get_or_create_worker(self, worker_name: str, arch: str = None) -> Optional[Path]:
         """Get or create a worker keytab and register host"""
         # Handle scaled resources
-        if scale_index is not None:
-            actual_worker_name = f"{worker_name}-{scale_index}"
-        else:
-            actual_worker_name = worker_name
 
-        principal_name = f"worker/{actual_worker_name}"
-        full_principal_name = f"{principal_name}@{self.krb5_realm}"
+        principal_name = f"worker/{worker_name}@{self.krb5_realm}"
 
         # Ensure principal exists
-        if not self.check_principal_exists(full_principal_name):
-            if not self.create_principal(full_principal_name):
+        if not self.check_principal_exists(principal_name):
+            if not self.create_principal(principal_name):
                 return None
 
         # Create keytab
-        keytab_path = self.create_keytab(full_principal_name)
+        keytab_path = self.create_keytab(principal_name)
         if not keytab_path:
             return None
 
         # Register as Koji host
-        if not self.manage_koji_host(actual_worker_name, full_principal_name, arch):
-            logger.warning(f"Failed to register Koji host {actual_worker_name}")
+        if not self.manage_koji_host(worker_name, principal_name, arch):
+            logger.warning(f"Failed to register Koji host {worker_name}")
 
         return keytab_path
 

@@ -29,9 +29,11 @@ class CheckoutManager:
         """
         try:
             # Step 1: Identify requesting container
-            container_id, scale_index = self.container_client.identify_container_by_ip(client_ip)
-            if not container_id:
+            container = self.container_client.get_container_by_ip(client_ip)
+            if not container:
                 return False, None, "Unable to identify requesting container"
+
+            container_id = container.id
 
             # Step 2: Verify container is running
             if not self.container_client.is_container_running(container_id):
@@ -55,8 +57,10 @@ class CheckoutManager:
 
             # Step 5: Determine actual resource name (handle scaling)
             actual_resource_name = mapping['actual_resource_name']
-            if mapping['resource_type'] == 'worker' and scale_index is not None:
-                actual_resource_name = f"{mapping['actual_resource_name']}-{scale_index}"
+            if mapping['resource_type'] == 'worker':
+                scale_index = self.container_client.get_scale_index(container)
+                service_name = container.labels.get('io.podman.compose.service')
+                actual_resource_name = f"{service_name}-{scale_index}"
 
             # Step 6: Checkout the resource in database
             if not self.db.checkout_resource(
@@ -65,7 +69,6 @@ class CheckoutManager:
                 container_ip=client_ip,
                 resource_type=mapping['resource_type'],
                 actual_resource_name=actual_resource_name,
-                scale_index=scale_index
             ):
                 return False, None, "Failed to checkout resource in database"
 
@@ -74,7 +77,6 @@ class CheckoutManager:
                 resource_path = self.resource_manager.get_or_create_resource(
                     resource_type=mapping['resource_type'],
                     actual_resource_name=actual_resource_name,
-                    scale_index=scale_index
                 )
 
                 if not resource_path:

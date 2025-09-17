@@ -34,9 +34,9 @@ class ContainerClient:
         """Check if connected to Docker daemon"""
         return self.client is not None
 
-    def identify_container_by_ip(self, request_ip: str) -> Tuple[Optional[str], Optional[int]]:
+    def get_container_by_ip(self, request_ip: str) -> Optional[Dict]:
         """
-        Identify container by IP address and return (container_id, scale_index)
+        Identify container by IP address and return container
         Enhanced with multiple fallback methods and better error handling
         """
         if not self.is_connected():
@@ -51,22 +51,19 @@ class ContainerClient:
             for container in containers:
                 if self._check_container_ip(container, request_ip):
                     logger.info(f"Found container {container.id} for IP {request_ip} (direct match)")
-                    scale_index = self._extract_scale_index(container)
-                    return container.id, scale_index
+                    return container
 
             # Method 2: Check for containers with similar IPs (subnet matching)
             for container in containers:
                 if self._check_container_ip_subnet(container, request_ip):
                     logger.info(f"Found container {container.id} for IP {request_ip} (subnet match)")
-                    scale_index = self._extract_scale_index(container)
-                    return container.id, scale_index
+                    return container
 
             # Method 3: Check container labels for explicit IP mapping
             for container in containers:
                 if self._check_container_ip_label(container, request_ip):
                     logger.info(f"Found container {container.id} for IP {request_ip} (label match)")
-                    scale_index = self._extract_scale_index(container)
-                    return container.id, scale_index
+                    return container
 
             logger.warning(f"No container found for IP {request_ip}")
             return None, None
@@ -74,6 +71,19 @@ class ContainerClient:
         except Exception as e:
             logger.error(f"Error identifying container by IP {request_ip}: {e}")
             return None, None
+
+
+    def identify_container_by_ip(self, request_ip: str) -> Tuple[Optional[str], Optional[int]]:
+        """
+        Identify container by IP address and return (container_id, scale_index)
+        Enhanced with multiple fallback methods and better error handling
+        """
+
+        container = self.get_container_by_ip(request_ip)
+        if container:
+            return container.id, self._extract_scale_index(container)
+        return None, None
+
 
     def _check_container_ip(self, container, request_ip: str) -> bool:
         """Check if container has the exact IP address"""
@@ -117,6 +127,10 @@ class ContainerClient:
             logger.debug(f"Error checking container IP label for {container.id}: {e}")
             return False
 
+    def get_scale_index(self, container) -> Optional[int]:
+        """Get scale index from container"""
+        return self._extract_scale_index(container)
+
     def _extract_scale_index(self, container) -> Optional[int]:
         """Extract scale index from container metadata"""
         try:
@@ -131,6 +145,8 @@ class ContainerClient:
                 return int(labels['scale_index'])
             if 'orch.scale.index' in labels:
                 return int(labels['orch.scale.index'])
+            if "com.docker.compose.container-number" in labels:
+                return int(labels['com.docker.compose.container-number'])
 
             # Method 3: Environment variables
             env_vars = container.attrs.get('Config', {}).get('Env', [])
@@ -139,7 +155,7 @@ class ContainerClient:
                     return int(env_var.split('=', 1)[1])
 
             # Method 4: Check for any numeric suffix in name
-            if match := re.search(r'-(\d+)$', container_name):
+            if match := re.search(r'[-_](\d+)$', container_name):
                 return int(match.group(1))
 
             logger.debug(f"No scale index found for container {container_name}")
