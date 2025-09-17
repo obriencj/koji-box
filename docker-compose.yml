@@ -83,6 +83,8 @@ services:
     container_name: koji-boxed-common
     scales:
       common: 0
+    profiles:
+      - "build"
 
   postgres:
     image: postgres:15-alpine
