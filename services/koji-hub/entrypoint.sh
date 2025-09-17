@@ -13,6 +13,12 @@ log() {
 
 log "Starting Koji Hub entrypoint..."
 
+log "Ensuring /mnt/koji consistency..."
+mkdir -p /mnt/koji/repos /mnt/koji/packages /mnt/koji/builds /mnt/koji/tasks /mnt/koji/scratch
+chmod -R a+rX /mnt/koji/
+ls -al
+
+
 log "Running configure.sh"
 /app/configure.sh
 log "✓ configure.sh completed"
