@@ -57,7 +57,7 @@ export HUB_PID=$!
 log "✓ Koji hub service started (pid: $HUB_PID)"
 
 log "Launching startup scripts"
-su koji -c /usr/local/bin/startup.sh
+su koji -c /app/startup.sh
 log "✓ startup scripts completed"
 
 log "Rejoining process $HUB_PID"
