@@ -81,7 +81,7 @@ class ContainerClient:
 
         container = self.get_container_by_ip(request_ip)
         if container:
-            return container.id, self._extract_scale_index(container)
+            return container.id, self.get_scale_index(container)
         return None, None
 
 
@@ -133,11 +133,8 @@ class ContainerClient:
             logger.debug(f"Error checking container IP label for {container.id}: {e}")
             return False
 
-    def get_scale_index(self, container) -> Optional[int]:
-        """Get scale index from container"""
-        return self._extract_scale_index(container)
-
-    def _extract_scale_index(self, container) -> Optional[int]:
+    @staticmethod
+    def get_scale_index(container) -> Optional[int]:
         """Extract scale index from container metadata"""
         try:
             # Method 1: Parse container name (e.g., koji-worker-3)

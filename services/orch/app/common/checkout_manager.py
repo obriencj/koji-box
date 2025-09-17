@@ -44,23 +44,24 @@ class CheckoutManager:
             if not mapping:
                 return False, None, "Resource not found"
 
-            # Step 4: Check current checkout status
-            status = self.db.get_resource_status(uuid)
+            # Step 4: Determine actual resource name using centralized logic
+            actual_resource_name = self.resource_manager.determine_actual_resource_name(
+                uuid=uuid,
+                container=container,
+                resource_mapping=mapping,
+                container_client=self.container_client
+            )
+
+            # Step 5: Check current checkout status for this specific resource
+            status = self.db.get_resource_status(uuid, actual_resource_name)
             if status and status['checked_out']:
                 # Check if previous owner is still alive
                 if self.container_client.is_container_running(status['container_id']):
                     return False, None, "Resource already checked out to another container"
                 else:
                     # Previous owner is dead, clean up
-                    logger.info(f"Cleaning up dead container checkout for {uuid}")
+                    logger.info(f"Cleaning up dead container checkout for {uuid} ({actual_resource_name})")
                     self.db.release_resource(uuid, status['container_id'])
-
-            # Step 5: Determine actual resource name (handle scaling)
-            actual_resource_name = mapping['actual_resource_name']
-            if mapping['resource_type'] == 'worker':
-                scale_index = self.container_client.get_scale_index(container)
-                service_name = container.labels.get('io.podman.compose.service')
-                actual_resource_name = f"{service_name}-{scale_index}"
 
             # Step 6: Checkout the resource in database
             if not self.db.checkout_resource(
@@ -161,8 +162,17 @@ class CheckoutManager:
             if not mapping:
                 return False, "Resource not found"
 
-            # Check if resource is checked out
-            status = self.db.get_resource_status(uuid)
+            # Determine the specific actual_resource_name using centralized logic
+            container = self.container_client.get_container_by_ip(client_ip)
+            actual_resource_name = self.resource_manager.determine_actual_resource_name(
+                uuid=uuid,
+                container=container,
+                resource_mapping=mapping,
+                container_client=self.container_client
+            )
+
+            # Check if this specific resource is checked out
+            status = self.db.get_resource_status(uuid, actual_resource_name)
             if not status or not status['checked_out']:
                 return True, None  # Resource is available
 
@@ -179,7 +189,7 @@ class CheckoutManager:
                 return False, "Resource checked out to another container"
             else:
                 # Previous owner is dead, resource can be accessed
-                logger.info(f"Previous owner of {uuid} is dead, allowing access")
+                logger.info(f"Previous owner of {uuid} ({actual_resource_name}) is dead, allowing access")
                 return True, None
 
         except Exception as e:

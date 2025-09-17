@@ -196,6 +196,83 @@ class ResourceManager:
             logger.error(f"Error managing Koji host {worker_name}: {e}")
             return False
 
+    def determine_actual_resource_name(self, uuid: str, container, resource_mapping: Dict, container_client=None) -> str:
+        """
+        Determine the actual resource name for a given UUID and container.
+        This is the centralized logic for all resource types.
+
+        Args:
+            uuid: The resource UUID
+            container: The requesting container object
+            resource_mapping: The resource mapping dict from database
+            container_client: Optional ContainerClient instance for scale index extraction
+
+        Returns:
+            The actual resource name to use for this container/resource combination
+        """
+        try:
+            base_name = resource_mapping['actual_resource_name']
+            resource_type = resource_mapping['resource_type']
+
+            # For worker resources, append scale index
+            if resource_type == 'worker':
+                if not container:
+                    logger.error(f"Container required for worker resource {uuid}")
+                    return base_name
+
+                # Get scale index from container using container_client if available
+                if container_client:
+                    scale_index = container_client.get_scale_index(container)
+                else:
+                    # Fallback to direct extraction if no container_client provided
+                    scale_index = self._extract_scale_index_fallback(container)
+
+                # Get service name from container labels
+                service_name = base_name  # Default fallback
+                if hasattr(container, 'labels') and container.labels:
+                    service_name = container.labels.get('io.podman.compose.service', base_name)
+
+                # Build scaled resource name
+                actual_name = f"{service_name}-{scale_index}"
+                logger.debug(f"Worker resource {uuid}: {base_name} -> {actual_name} (scale_index={scale_index})")
+                return actual_name
+
+            # For all other resource types, use base name as-is
+            logger.debug(f"Non-worker resource {uuid}: using base name {base_name}")
+            return base_name
+
+        except Exception as e:
+            logger.error(f"Error determining actual resource name for {uuid}: {e}")
+            return resource_mapping.get('actual_resource_name', 'unknown')
+
+    def _extract_scale_index_fallback(self, container) -> int:
+        """Fallback method to extract scale index when no ContainerClient is available"""
+        try:
+            if not hasattr(container, 'labels'):
+                return 0
+
+            labels = container.labels or {}
+
+            # Try different label formats
+            if 'scale_index' in labels:
+                return int(labels['scale_index'])
+            elif 'orch.scale.index' in labels:
+                return int(labels['orch.scale.index'])
+            else:
+                # Try environment variables if available
+                if hasattr(container, 'attrs') and 'Config' in container.attrs:
+                    env_vars = container.attrs['Config'].get('Env', [])
+                    for env_var in env_vars:
+                        if env_var.startswith('SCALE_INDEX='):
+                            return int(env_var.split('=', 1)[1])
+
+                logger.debug(f"No scale index found for container {container.id}, using 0")
+                return 0
+
+        except (ValueError, AttributeError) as e:
+            logger.error(f"Error extracting scale index from container {getattr(container, 'id', 'unknown')}: {e}")
+            return 0
+
     def get_or_create_resource(self, resource_type: str, actual_resource_name: str) -> Optional[Path]:
         """Get or create a resource based on type and name"""
         try:
