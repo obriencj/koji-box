@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("database")
 
 class DatabaseManager:
     """Manages SQLite database for resource tracking"""

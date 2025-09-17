@@ -9,7 +9,7 @@ import logging
 from typing import Optional, Dict, List, Tuple
 import podman
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("container_client")
 
 class ContainerClient:
     """Client for interacting with Docker/Podman containers"""

@@ -9,7 +9,7 @@ from flask import Blueprint, request, jsonify, send_file, current_app
 
 from ..common.error_handlers import ErrorHandler, ErrorResponse
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("/api/v2/ca")
 ca_bp = Blueprint('ca', __name__)
 
 @ca_bp.route('/certificate', methods=['GET'])

@@ -6,7 +6,7 @@ V2 Status API - Resource status and health checks
 import logging
 from flask import Blueprint, request, jsonify, current_app
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("/api/v2/status")
 status_bp = Blueprint('status', __name__)
 
 @status_bp.route('/<uuid>')

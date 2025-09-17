@@ -20,7 +20,10 @@ log "✓ configure.sh completed"
 export KOJID_KEYTAB=/app/kojid.keytab
 
 log "Registering worker with orch..."
-/app/orch.sh checkout ${KOJI_WORKER_KEYTAB} ${KOJID_KEYTAB}
+if ! /app/orch.sh checkout ${KOJI_WORKER_KEYTAB} ${KOJID_KEYTAB} ; then
+    log "Failed to checkout keytab"
+    exit 1
+fi
 export KOJID_PRINC=$(klist -k ${KOJID_KEYTAB} | tail -n 1 | awk '{print $2}')
 
 log "Granted principal: ${KOJID_PRINC}"
@@ -31,6 +34,7 @@ mkdir -p /etc/kojid
 envsubst < /app/kojid.conf.template > /etc/kojid/kojid.conf
 log "✓ kojid.conf generated"
 
+mkdir -p /etc/mock/koji /var/lib/mock /var/tmp/koji
 
 log "exec'ing kojid"
 exec /app/kojid --fg ${BUILDER_ARGS}

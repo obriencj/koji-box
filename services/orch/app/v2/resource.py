@@ -11,7 +11,7 @@ from flask import Blueprint, request, jsonify, send_file, current_app
 from ..common.validators import ResourceValidator, SecurityValidator, RequestValidator
 from ..common.error_handlers import ErrorHandler, ErrorResponse
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("/api/v2/resource")
 resource_bp = Blueprint('resource', __name__)
 
 @resource_bp.route('/<uuid>', methods=['POST'])

@@ -12,7 +12,7 @@ from .database import DatabaseManager
 from .resource_manager import ResourceManager
 from .container_client import ContainerClient
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("checkout_manager")
 
 class CheckoutManager:
     """Manages resource checkout operations with security validation"""

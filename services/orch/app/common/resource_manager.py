@@ -15,7 +15,7 @@ from urllib.parse import quote_plus as urlquote
 
 from .database import DatabaseManager
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("resource_manager")
 
 class ResourceManager:
     """Manages resource creation and lifecycle"""
@@ -305,7 +305,9 @@ class ResourceManager:
         """Get or create a worker keytab and register host"""
         # Handle scaled resources
 
-        principal_name = f"worker/{worker_name}@{self.krb5_realm}"
+        if not worker_name.startswith('worker/'):
+            worker_name = f"worker/{worker_name}"
+        principal_name = f"{worker_name}@{self.krb5_realm}"
 
         # Ensure principal exists
         if not self.check_principal_exists(principal_name):
@@ -320,6 +322,7 @@ class ResourceManager:
         # Register as Koji host
         if not self.manage_koji_host(worker_name, principal_name, arch):
             logger.warning(f"Failed to register Koji host {worker_name}")
+            return None
 
         return keytab_path
 
