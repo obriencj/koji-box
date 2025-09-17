@@ -28,11 +28,12 @@ log "Granted principal: ${KOJID_PRINC}"
 log "✓ worker registered with orch"
 
 log "Generating kojid.conf"
-envsubst < /app/kojid.conf.template > /etc/kojid.conf
+mkdir -p /etc/kojid
+envsubst < /app/kojid.conf.template > /etc/kojid/kojid.conf
 log "✓ kojid.conf generated"
 
 
 log "exec'ing kojid"
-exec /sbin/kojid --fg ${BUILDER_ARGS}
+exec /app/kojid --fg ${BUILDER_ARGS}
 
 # The end.

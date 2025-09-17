@@ -131,8 +131,6 @@ from_addr=Koji Build System <buildsys@example.com>
 ;%s will be replaced by the FQDN of the host
 ;host_principal_format = compile/%s@EXAMPLE.COM
 
-authtype = kerberos
-
 ;granted by orch
 krb_principal = ${KOJID_PRINC}
 
