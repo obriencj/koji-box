@@ -47,15 +47,13 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 ### 🚧 **IN PROGRESS** - Koji Client
 - [x] Basic CLI interface implementation
 - [x] Kerberos authentication integration
-- [ ] Reliability improvements and error handling
-- [ ] Enhanced command coverage
 - [ ] Automated testing integration
 
 ### 🚧 **IN PROGRESS** - Koji Workers
 - [x] Basic worker service structure
 - [x] Resource management via Orch service
-- [x] Docker Compose profile support (`--profile workers`)
-- [ ] Build execution engine
+- [x] Scalable from compose
+- [x] kojid runs
 - [ ] Mock/chroot build environments
 - [ ] Resource scaling and load balancing
 - [ ] Build artifact management
@@ -78,18 +76,14 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 
 ## 🧪 Testing & Quality Assurance
 
-### 📋 **PLANNED** - Automated Testing Framework
-- [x] Basic test infrastructure (`tests/` directory)
-- [ ] Integration test suite implementation
-- [ ] End-to-end workflow testing
-- [ ] Performance benchmarking
-- [ ] Regression testing automation
-- [ ] Test result reporting and analysis
+### 📋 **PLANNED** - Automated Configuration
+- [x] Initial flexible hub setup via init dir
+- [x] Initial flexible client setup via init dir
+- [ ] Ansible playbook baked into hub to create environment
 
 ### 📋 **PLANNED** - Test Runner Service
 - [x] Service structure in Docker Compose
 - [ ] Automated test execution engine
-- [ ] Test scheduling and orchestration
 - [ ] Result collection and reporting
 - [ ] Integration with CI/CD pipelines
 - [ ] Test environment provisioning
@@ -163,14 +157,7 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 - [ ] LDAP/Active Directory authentication
 - [ ] Notification system integration (Slack/email)
 - [ ] Artifact storage integration (S3/MinIO)
-
-### 📋 **PLANNED** - API Enhancements
-- [ ] GraphQL API implementation
 - [ ] Webhook system for event notifications
-- [ ] Rate limiting and throttling
-- [ ] API versioning strategy
-- [ ] SDK development for common languages
-- [ ] API documentation automation
 
 ## 📚 Documentation & User Experience
 
@@ -178,16 +165,16 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 - [x] Basic README with setup instructions
 - [x] Service-specific documentation (Orch service)
 - [x] Architecture overview and diagrams
-- [ ] Comprehensive API documentation
+- [ ] Comprehensive usage documentation
 - [ ] Troubleshooting guides
 - [ ] Best practices documentation
-- [ ] Video tutorials and walkthroughs
 
 ## 🎯 Long-term Vision
 
 
 ### 📋 **PLANNED** - Ecosystem Expansion
 - [ ] Integration with content generators (atomic reactor, osbuild, pnc)
+- [ ] Popular plugins (UMB, koji-smoky-dingo)
 - [ ] Multi-architecture builds
 
 ---
