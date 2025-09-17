@@ -168,6 +168,7 @@ services:
       # our own builtin claims
       ORCH_PRINC: ${ORCH_PRINC:-orch@KOJI.BOX}
       ORCH_KEYTAB: ${ORCH_KEYTAB:-4e344539-8902-4ea1-8797-cd49de9e1c5f}
+      ORCH_LOG_LEVEL: ${ORCH_LOG_LEVEL:-INFO}
     volumes:
       # see SOCKET_README.md for details on using PODMAN_SOCKET with rootless podman
       - ${PODMAN_SOCKET:-/var/run/podman.sock}:/var/run/docker.sock
@@ -222,7 +223,7 @@ services:
         aliases:
           - koji-hub.koji.box
     healthcheck:
-      test: ["CMD-SHELL", "koji version || exit 1"]
+      test: ["CMD-SHELL", "koji --noauth version || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
