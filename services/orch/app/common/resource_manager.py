@@ -179,10 +179,13 @@ class ResourceManager:
             logger.error(f"Error creating self-signed certificate for {cn}: {e}")
             return None, None
 
-    def manage_koji_host(self, worker_name: str, full_principal_name: str) -> bool:
+    def manage_koji_host(self, worker_name: str, full_principal_name: str, arch: str = None) -> bool:
         """Manage Koji host using the shell script"""
+
         try:
             cmd = ['/app/manage-koji-host.sh', worker_name, full_principal_name]
+            if arch:
+                cmd.append(arch)
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             if result.returncode != 0:
                 logger.error(f"Failed to manage Koji host {worker_name}: {result.stderr}")
@@ -221,7 +224,7 @@ class ResourceManager:
         # Create keytab
         return self.create_keytab(principal_name)
 
-    def _get_or_create_worker(self, worker_name: str, scale_index: int = None) -> Optional[Path]:
+    def _get_or_create_worker(self, worker_name: str, scale_index: int = None, arch: str = None) -> Optional[Path]:
         """Get or create a worker keytab and register host"""
         # Handle scaled resources
         if scale_index is not None:
@@ -243,7 +246,7 @@ class ResourceManager:
             return None
 
         # Register as Koji host
-        if not self.manage_koji_host(actual_worker_name, full_principal_name):
+        if not self.manage_koji_host(actual_worker_name, full_principal_name, arch):
             logger.warning(f"Failed to register Koji host {actual_worker_name}")
 
         return keytab_path
