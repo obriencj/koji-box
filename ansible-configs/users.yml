@@ -1,0 +1,45 @@
+---
+# Example Koji Users Configuration
+#
+# This file defines users that will be created in your Koji instance.
+# Each user can have multiple principals and permissions.
+#
+# Available permissions:
+# - admin: Full administrative access
+# - tag: Can create and manage tags
+# - target: Can create and manage build targets
+# - host: Can manage build hosts
+# - dist-repo: Can manage distribution repositories
+# - maven-import: Can import Maven artifacts
+
+- name: "developer1"
+  principal: "developer1@KOJI.BOX"
+  permissions:
+    - "tag"
+    - "target"
+  state: "present"
+
+- name: "builder1"
+  principal: "builder1@KOJI.BOX"
+  permissions:
+    - "host"
+  state: "present"
+
+- name: "admin1"
+  principal: "admin1@KOJI.BOX"
+  permissions:
+    - "admin"
+  state: "present"
+
+- name: "packager1"
+  principal: "packager1@KOJI.BOX"
+  permissions:
+    - "tag"
+    - "target"
+    - "dist-repo"
+  state: "present"
+
+# Example of removing a user
+# - name: "olduser"
+#   principal: "olduser@KOJI.BOX"
+#   state: "absent"

@@ -1,0 +1,58 @@
+---
+# Example Koji Tags Configuration
+#
+# This file defines tags that will be created in your Koji instance.
+# Tags are used to organize packages and define inheritance relationships.
+#
+# Tag hierarchy example:
+# f39 (base tag)
+# ├── f39-build (build tag - inherits from f39)
+# ├── f39-updates (updates tag - inherits from f39)
+# └── f39-testing (testing tag - inherits from f39)
+
+- name: "f39"
+  parent: null
+  locked: false
+  maven_support: false
+  state: "present"
+
+- name: "f39-build"
+  parent: "f39"
+  locked: false
+  maven_support: false
+  state: "present"
+
+- name: "f39-updates"
+  parent: "f39"
+  locked: true  # Updates tags are typically locked
+  maven_support: false
+  state: "present"
+
+- name: "f39-testing"
+  parent: "f39"
+  locked: false
+  maven_support: false
+  state: "present"
+
+- name: "f40"
+  parent: null
+  locked: false
+  maven_support: false
+  state: "present"
+
+- name: "f40-build"
+  parent: "f40"
+  locked: false
+  maven_support: false
+  state: "present"
+
+# Example Maven-enabled tag
+- name: "maven-central"
+  parent: null
+  locked: false
+  maven_support: true
+  state: "present"
+
+# Example of removing a tag
+# - name: "old-tag"
+#   state: "absent"

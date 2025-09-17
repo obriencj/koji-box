@@ -11,6 +11,7 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
 - **KDC (Kerberos)** - Authentication service with realm KOJI.BOX
 - **Orch Service** - REST API for resource management with CA certificate support
 - **Koji Hub** - Central coordination service (fully functional with orch integration)
+- **Ansible Configurator** - Automated Koji configuration management
 
 ### 🚧 In Progress Services
 - **Koji Client** - CLI interface (working on reliability improvements)
@@ -99,10 +100,12 @@ koji-boxed/
 │   ├── koji-client/                 # 🚧 Koji CLI client (reliability improvements)
 │   ├── orch/                        # ✅ Orch resource management service
 │   ├── postgres/                    # ✅ PostgreSQL database
+│   ├── ansible-configurator/        # ✅ Ansible configuration management
 │   ├── koji-worker/                 # 🚧 Build workers (in progress)
 │   ├── koji-web/                    # 🚧 Web interface (in progress)
 │   ├── nginx/                       # 🚧 Reverse proxy (in progress)
 │   └── test-runner/                 # 🚧 Test automation (in progress)
+├── ansible-configs/                 # ✅ Ansible YAML configuration files
 └── tests/                           # Integration tests
     ├── test-scripts/
     └── expected-results/
@@ -200,6 +203,14 @@ curl -o ca.crt http://orch.koji.box:5000/api/v2/ca/certificate
 sudo ./services/common/orch.sh ca-install
 ```
 
+### Ansible Configuration Management
+
+- `make configure` - Run Ansible configuration on existing Koji instance
+- `make reconfigure` - Force reconfiguration by restarting Ansible service
+- `make logs-ansible` - Show logs for Ansible Configurator
+- `make ansible-shell` - Get shell access to ansible configurator (for debugging)
+- `make validate-ansible` - Validate Ansible configuration files
+
 ### Maintenance
 
 - `make clean` - Remove all containers and images
@@ -229,6 +240,20 @@ KOJI_STORAGE_HOST=nginx
 KOJI_STORAGE_PORT=80
 ```
 
+### Ansible Configuration
+
+The `ansible-configs/` directory contains YAML files for automated Koji configuration:
+
+- `ansible-configs/users.yml` - Define Koji users and permissions
+- `ansible-configs/hosts.yml` - Define build hosts and capabilities
+- `ansible-configs/tags.yml` - Define package tags and inheritance
+- `ansible-configs/targets.yml` - Define build targets
+- `ansible-configs/site.yml` - Main Ansible playbook
+- `ansible-configs/inventory.yml` - Koji environment inventory
+- `ansible-configs/group_vars/all.yml` - Global variables and defaults
+
+See `ansible-configs/README.md` for detailed configuration documentation.
+
 ### Service Configuration
 
 Each service has its own configuration directory under `configs/`:
@@ -254,6 +279,9 @@ These templates use environment variable substitution and are copied into contai
 ```bash
 # Build and start everything
 make quick-start
+
+# Apply custom Koji configuration
+make configure
 
 # Check status
 make status
@@ -432,6 +460,12 @@ The nginx proxy will provide a unified entry point with the following planned ro
 - **Purpose**: Central coordination service
 - **Access**: `koji-hub.koji.box:80`
 - **Features**: User management, build coordination, API endpoints
+
+### ✅ Ansible Configurator
+- **Status**: Fully functional
+- **Purpose**: Automated Koji configuration management
+- **Access**: Run via `make configure` or `make reconfigure`
+- **Features**: User/host/tag/target management, declarative YAML configuration, state reset capability
 
 ### 🚧 Koji Client
 - **Status**: Working on reliability improvements

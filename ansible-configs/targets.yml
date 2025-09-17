@@ -1,0 +1,40 @@
+---
+# Example Koji Targets Configuration
+#
+# This file defines build targets that will be created in your Koji instance.
+# Build targets specify which build tag to use and where to place the results.
+#
+# A build target consists of:
+# - name: The target name (what users specify when building)
+# - build_tag: The tag containing packages available during build
+# - dest_tag: The tag where successful builds are tagged
+
+- name: "f39"
+  build_tag: "f39-build"
+  dest_tag: "f39"
+  state: "present"
+
+- name: "f39-updates"
+  build_tag: "f39-build"
+  dest_tag: "f39-updates"
+  state: "present"
+
+- name: "f39-testing"
+  build_tag: "f39-build"
+  dest_tag: "f39-testing"
+  state: "present"
+
+- name: "f40"
+  build_tag: "f40-build"
+  dest_tag: "f40"
+  state: "present"
+
+# Example Maven target
+- name: "maven-build"
+  build_tag: "maven-central"
+  dest_tag: "maven-central"
+  state: "present"
+
+# Example of removing a target
+# - name: "old-target"
+#   state: "absent"

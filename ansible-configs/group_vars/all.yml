@@ -1,0 +1,43 @@
+---
+# Global variables for Koji Ansible configuration
+#
+# These variables are available to all playbooks and can be overridden
+# by environment variables or host-specific variables.
+
+# Koji connection settings
+koji_hub_url: "{{ ansible_env.KOJI_HUB_URL | default('https://koji-hub.koji.box/kojihub') }}"
+koji_web_url: "{{ ansible_env.KOJI_WEB_URL | default('http://koji.box/') }}"
+
+# Kerberos settings
+krb5_realm: "{{ ansible_env.KRB5_REALM | default('KOJI.BOX') }}"
+koji_admin_principal: "{{ ansible_env.KOJI_ADMIN_PRINC | default('hub-admin@KOJI.BOX') }}"
+
+# Default permissions for different user types
+default_permissions:
+  developer:
+    - "tag"
+    - "target"
+  builder:
+    - "host"
+  admin:
+    - "admin"
+  packager:
+    - "tag"
+    - "target"
+    - "dist-repo"
+
+# Default host settings
+default_host_settings:
+  capacity: 1.0
+  enabled: true
+  arches:
+    - "x86_64"
+    - "noarch"
+
+# Default tag settings
+default_tag_settings:
+  locked: false
+  maven_support: false
+
+# Ansible behavior settings
+ansible_python_interpreter: /usr/bin/python3

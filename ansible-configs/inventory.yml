@@ -1,0 +1,6 @@
+---
+koji-hub:
+  hosts:
+    koji-hub.koji.box:
+      ansible_connection: local
+      ansible_python_interpreter: /usr/bin/python3

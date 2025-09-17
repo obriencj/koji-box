@@ -372,6 +372,36 @@ services:
         reservations:
           memory: 64m
 
+  ansible-configurator:
+    build:
+      context: .
+      dockerfile: services/ansible-configurator/Dockerfile
+    container_name: koji-boxed-ansible-configurator
+    depends_on:
+      koji-hub:
+        condition: service_healthy
+      orch-service:
+        condition: service_healthy
+    environment:
+      <<: [*common-base-settings,
+           *common-koji-admin]
+    volumes:
+      - ./ansible-configs:/ansible-configs:ro,Z
+      - orch_data:/mnt/data:ro
+    networks:
+      koji-network:
+        aliases:
+          - ansible-configurator.koji.box
+    restart: "no"  # Run once and exit
+    profiles:
+      - "ansible"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
 
 networks:
   koji-network:

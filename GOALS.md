@@ -76,10 +76,14 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 
 ## 🧪 Testing & Quality Assurance
 
-### 📋 **PLANNED** - Automated Configuration
+### ✅ **DONE** - Automated Configuration
 - [x] Initial flexible hub setup via init dir
 - [x] Initial flexible client setup via init dir
-- [ ] Ansible playbook baked into hub to create environment
+- [x] Ansible-based configuration management system
+- [x] Separate ansible-configurator service
+- [x] Declarative YAML configuration for users, hosts, tags, and targets
+- [x] State reset capability via container restart
+- [x] Single directory configuration management
 
 ### 📋 **PLANNED** - Test Runner Service
 - [x] Service structure in Docker Compose
@@ -195,5 +199,5 @@ This section will track major scope changes and their impact:
 
 ---
 
-**Last Updated:** September 16, 2025
+**Last Updated:** September 17, 2025
 **Next Review:** To be scheduled based on development progress
