@@ -37,6 +37,6 @@ log "✓ kojid.conf generated"
 mkdir -p /etc/mock/koji /var/lib/mock /var/tmp/koji
 
 log "exec'ing kojid"
-exec /app/kojid --fg ${BUILDER_ARGS}
+exec su koji -c "python3 /app/kojid --fg ${BUILDER_ARGS}"
 
 # The end.

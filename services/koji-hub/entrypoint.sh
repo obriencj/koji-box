@@ -10,8 +10,14 @@ set -e
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
-
 log "Starting Koji Hub entrypoint..."
+
+
+log "Ensuring /mnt/koji consistency..."
+mkdir -p /mnt/koji/repos /mnt/koji/packages /mnt/koji/builds /mnt/koji/tasks /mnt/koji/scratch
+chmod -R a+rX /mnt/koji/
+ls -al /mnt/koji/
+
 
 log "Running configure.sh"
 /app/configure.sh
@@ -34,6 +40,10 @@ if ! envsubst < /app/httpd.conf.template > /etc/koji-hub/httpd.conf; then
     exit 1
 fi
 cp -f /etc/koji-hub/httpd.conf /etc/httpd/conf.d/kojihub.conf
+
+log "Updating Apache to run as koji user"
+sed -r 's,^(User|Group) apache,\1 koji,g' -i /etc/httpd/conf/httpd.conf
+
 log "✓ Apache configured"
 
 

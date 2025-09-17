@@ -83,6 +83,8 @@ services:
     container_name: koji-boxed-common
     scales:
       common: 0
+    profiles:
+      - "build"
 
   postgres:
     image: postgres:15-alpine
@@ -96,9 +98,9 @@ services:
       DB_IDLE_IN_TRANSACTION_SESSION_TIMEOUT: ${DB_IDLE_IN_TRANSACTION_SESSION_TIMEOUT:-10min}
       DB_IDLE_SESSION_TIMEOUT: ${DB_IDLE_SESSION_TIMEOUT:-0}
     volumes:
-      - postgres_data:/var/lib/postgresql/data:Z
-      - ./services/postgres/init.d:/docker-entrypoint-initdb.d:Z
-      - ./koji-src/:/mnt/koji-src:Z
+      - postgres_data:/var/lib/postgresql/data
+      - ./services/postgres/init.d:/docker-entrypoint-initdb.d:ro,Z
+      - ./koji-src/:/mnt/koji-src:ro,Z
     expose:
       - "5432"
     networks:
@@ -127,7 +129,7 @@ services:
            *common-kadmin]
     volumes:
       - kdc_data:/var/lib/krb5kdc:Z
-      - ./services/kdc/init.d:/var/lib/krb5kdc/kdc-init.d:Z
+      - ./services/kdc/init.d:/var/lib/krb5kdc/kdc-init.d:ro,Z
       - ./data/logs/kdc:/var/log/krb5kdc:Z
     expose:
       - "88"
@@ -172,7 +174,7 @@ services:
     volumes:
       # see SOCKET_README.md for details on using PODMAN_SOCKET with rootless podman
       - ${PODMAN_SOCKET:-/var/run/podman.sock}:/var/run/docker.sock
-      - orch_data:/mnt/data:Z
+      - orch_data:/mnt/data
       - ./services/orch/templates/resource_mapping.yaml.template:/app/resource_mapping.yaml.template:ro,Z
     networks:
       koji-network:
@@ -212,7 +214,7 @@ services:
       KOJI_DEBUG: ${KOJI_DEBUG:-off}
       KOJI_LOG_LEVEL: ${KOJI_LOG_LEVEL:-INFO}
     volumes:
-      - koji_storage:/mnt/koji:Z
+      - koji_storage:/mnt/koji
       - ./services/koji-hub/init.d:/var/lib/koji-hub/hub-init.d:Z
       - ./data/logs/hub:/var/log/koji-hub:Z
     expose:
@@ -251,8 +253,8 @@ services:
       BUILDER_MAX_JOBS: ${BUILDER_MAX_JOBS:-10}
       BUILDER_ARGS: ${BUILDER_ARGS:- --force-lock --verbose}
     volumes:
-      - koji_storage:/mnt/koji:Z
-      - ./data/logs/worker:/var/log/koji-worker
+      - koji_storage:/mnt/koji
+      - ./data/logs/worker:/var/log/koji-worker:Z
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep -v grep | grep kojid || exit 1"]
       interval: 30s

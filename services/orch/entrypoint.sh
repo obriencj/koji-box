@@ -46,7 +46,7 @@ echo "✓ Directories created"
 
 echo "Orch service initialization complete"
 
-python3 -m gunicorn -w 4 -b 0.0.0.0:5000 app:app &
+python3 -m gunicorn --preload -w 4 -b 0.0.0.0:5000 app:app &
 ORCH_PID=$!
 
 for i in {1..10}; do

@@ -9,20 +9,27 @@ RUN dnf install -qy \
     python3-librepo \
     python3-multilib \
     python3-pycdio \
-    yum-utils && \
+    yum-utils \
+    zstd && \
     dnf clean all
 
 # Create worker-specific directories
-RUN mkdir -p /var/log/koji-worker \
+RUN mkdir -p \
+    /var/tmp/koji \
+    /var/log/koji-worker \
+    /var/lib/koji-worker \
+    /var/lib/mock \
+    /var/cache/mock
+
+RUN chown -R koji:koji \
+    /var/tmp/koji \
+    /var/log/koji-worker \
     /var/lib/koji-worker \
     /var/lib/mock \
     /var/cache/mock
 
 
-RUN cp /mnt/koji-src/builder/kojid /app/kojid && \
-    sed -i 's,/usr/bin/python2,/usr/bin/python3,g' /app/kojid && \
-    chmod +x /app/kojid
-
+RUN cp /mnt/koji-src/builder/kojid /app/kojid
 
 # Copy kojid.conf template
 COPY services/koji-worker/kojid.conf.template /app/kojid.conf.template
