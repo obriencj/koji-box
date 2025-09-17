@@ -15,7 +15,7 @@ from urllib.parse import quote_plus as urlquote
 
 from .database import DatabaseManager
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("resource_manager")
 
 class ResourceManager:
     """Manages resource creation and lifecycle"""
@@ -179,11 +179,14 @@ class ResourceManager:
             logger.error(f"Error creating self-signed certificate for {cn}: {e}")
             return None, None
 
-    def manage_koji_host(self, worker_name: str) -> bool:
+    def manage_koji_host(self, worker_name: str, full_principal_name: str, arch: str = None) -> bool:
         """Manage Koji host using the shell script"""
+
         try:
-            cmd = ['/app/manage-koji-host.sh', worker_name]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            cmd = ['/app/manage-koji-host.sh', worker_name, full_principal_name]
+            if arch:
+                cmd.append(arch)
+            result = subprocess.run(cmd, capture_output=False, text=True, timeout=60)
             if result.returncode != 0:
                 logger.error(f"Failed to manage Koji host {worker_name}: {result.stderr}")
                 return False
@@ -193,13 +196,90 @@ class ResourceManager:
             logger.error(f"Error managing Koji host {worker_name}: {e}")
             return False
 
-    def get_or_create_resource(self, resource_type: str, actual_resource_name: str, scale_index: int = None) -> Optional[Path]:
+    def determine_actual_resource_name(self, uuid: str, container, resource_mapping: Dict, container_client=None) -> str:
+        """
+        Determine the actual resource name for a given UUID and container.
+        This is the centralized logic for all resource types.
+
+        Args:
+            uuid: The resource UUID
+            container: The requesting container object
+            resource_mapping: The resource mapping dict from database
+            container_client: Optional ContainerClient instance for scale index extraction
+
+        Returns:
+            The actual resource name to use for this container/resource combination
+        """
+        try:
+            base_name = resource_mapping['actual_resource_name']
+            resource_type = resource_mapping['resource_type']
+
+            # For worker resources, append scale index
+            if resource_type == 'worker':
+                if not container:
+                    logger.error(f"Container required for worker resource {uuid}")
+                    return base_name
+
+                # Get scale index from container using container_client if available
+                if container_client:
+                    scale_index = container_client.get_scale_index(container)
+                else:
+                    # Fallback to direct extraction if no container_client provided
+                    scale_index = self._extract_scale_index_fallback(container)
+
+                # Get service name from container labels
+                service_name = base_name  # Default fallback
+                if hasattr(container, 'labels') and container.labels:
+                    service_name = container.labels.get('io.podman.compose.service', base_name)
+
+                # Build scaled resource name
+                actual_name = f"{service_name}-{scale_index}"
+                logger.debug(f"Worker resource {uuid}: {base_name} -> {actual_name} (scale_index={scale_index})")
+                return actual_name
+
+            # For all other resource types, use base name as-is
+            logger.debug(f"Non-worker resource {uuid}: using base name {base_name}")
+            return base_name
+
+        except Exception as e:
+            logger.error(f"Error determining actual resource name for {uuid}: {e}")
+            return resource_mapping.get('actual_resource_name', 'unknown')
+
+    def _extract_scale_index_fallback(self, container) -> int:
+        """Fallback method to extract scale index when no ContainerClient is available"""
+        try:
+            if not hasattr(container, 'labels'):
+                return 0
+
+            labels = container.labels or {}
+
+            # Try different label formats
+            if 'scale_index' in labels:
+                return int(labels['scale_index'])
+            elif 'orch.scale.index' in labels:
+                return int(labels['orch.scale.index'])
+            else:
+                # Try environment variables if available
+                if hasattr(container, 'attrs') and 'Config' in container.attrs:
+                    env_vars = container.attrs['Config'].get('Env', [])
+                    for env_var in env_vars:
+                        if env_var.startswith('SCALE_INDEX='):
+                            return int(env_var.split('=', 1)[1])
+
+                logger.debug(f"No scale index found for container {container.id}, using 0")
+                return 0
+
+        except (ValueError, AttributeError) as e:
+            logger.error(f"Error extracting scale index from container {getattr(container, 'id', 'unknown')}: {e}")
+            return 0
+
+    def get_or_create_resource(self, resource_type: str, actual_resource_name: str) -> Optional[Path]:
         """Get or create a resource based on type and name"""
         try:
             if resource_type == "principal":
                 return self._get_or_create_principal(actual_resource_name)
             elif resource_type == "worker":
-                return self._get_or_create_worker(actual_resource_name, scale_index)
+                return self._get_or_create_worker(actual_resource_name)
             elif resource_type == "cert":
                 return self._get_or_create_certificate(actual_resource_name)
             elif resource_type == "key":
@@ -221,30 +301,28 @@ class ResourceManager:
         # Create keytab
         return self.create_keytab(principal_name)
 
-    def _get_or_create_worker(self, worker_name: str, scale_index: int = None) -> Optional[Path]:
+    def _get_or_create_worker(self, worker_name: str, arch: str = None) -> Optional[Path]:
         """Get or create a worker keytab and register host"""
         # Handle scaled resources
-        if scale_index is not None:
-            actual_worker_name = f"{worker_name}-{scale_index}"
-        else:
-            actual_worker_name = worker_name
 
-        principal_name = f"koji/{actual_worker_name}.koji.box"
-        full_principal_name = f"{principal_name}@{self.krb5_realm}"
+        if not worker_name.startswith('worker/'):
+            worker_name = f"worker/{worker_name}"
+        principal_name = f"{worker_name}@{self.krb5_realm}"
 
         # Ensure principal exists
-        if not self.check_principal_exists(full_principal_name):
-            if not self.create_principal(full_principal_name):
+        if not self.check_principal_exists(principal_name):
+            if not self.create_principal(principal_name):
                 return None
 
         # Create keytab
-        keytab_path = self.create_keytab(full_principal_name)
+        keytab_path = self.create_keytab(principal_name)
         if not keytab_path:
             return None
 
         # Register as Koji host
-        if not self.manage_koji_host(actual_worker_name):
-            logger.warning(f"Failed to register Koji host {actual_worker_name}")
+        if not self.manage_koji_host(worker_name, principal_name, arch):
+            logger.warning(f"Failed to register Koji host {worker_name}")
+            return None
 
         return keytab_path
 

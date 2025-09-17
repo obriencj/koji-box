@@ -138,7 +138,6 @@ class ErrorLogger:
         """Log an error with consistent formatting"""
         log_data = {
             'error_type': error_type,
-            'message': message,
             'details': details or {},
             'request_id': getattr(request, 'id', None),
             'client_ip': request.remote_addr if request else None,

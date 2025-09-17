@@ -1,9 +1,14 @@
-FROM build_image
+FROM koji-boxed-common
 
 # Install worker-specific dependencies
 RUN dnf install -qy \
     createrepo_c \
     mock \
+    pykickstart \
+    python3-cheetah \
+    python3-librepo \
+    python3-multilib \
+    python3-pycdio \
     yum-utils && \
     dnf clean all
 
@@ -13,18 +18,27 @@ RUN mkdir -p /var/log/koji-worker \
     /var/lib/mock \
     /var/cache/mock
 
-# Copy worker service script
-COPY services/koji-worker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Copy health check script
-COPY services/koji-worker/health-check.sh /usr/local/bin/health-check.sh
-RUN chmod +x /usr/local/bin/health-check.sh
+RUN cp /mnt/koji-src/builder/kojid /app/kojid && \
+    sed -i 's,/usr/bin/python2,/usr/bin/python3,g' /app/kojid && \
+    chmod +x /app/kojid
 
-# Switch to koji user
-# USER koji
+
+# Copy kojid.conf template
+COPY services/koji-worker/kojid.conf.template /app/kojid.conf.template
+
+# Copy kojid.conf template
+COPY services/koji-worker/kojid.conf.template /app/kojid.conf.template
+
+# Copy entrypoint.sh
+COPY services/koji-worker/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Copy health-check.sh
+COPY services/koji-worker/health-check.sh /app/health-check.sh
+RUN chmod +x /app/health-check.sh
 
 # Start worker service
-CMD ["/usr/local/bin/entrypoint.sh"]
+CMD ["/app/entrypoint.sh"]
 
 # The end.

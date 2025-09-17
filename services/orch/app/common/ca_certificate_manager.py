@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 from urllib.parse import quote_plus as urlquote
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("ca_certificate_manager")
 
 class CACertificateManager:
     """Manages CA certificate creation and certificate signing"""

@@ -3,6 +3,8 @@ FROM koji-boxed-common
 # Install hub-specific dependencies
 RUN dnf install -y \
     httpd \
+    python3-psycopg2 \
+    python3-sqlalchemy \
     mod_ssl \
     mod_wsgi \
     mod_auth_gssapi && \
@@ -20,16 +22,16 @@ RUN chmod +x /mnt/koji-src/devtools/*.py && \
     PYTHON=python3 DESTDIR=/ make install
 
 # Copy entrypoint script
-COPY services/koji-hub/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY services/koji-hub/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Copy startup script
-COPY services/koji-hub/startup.sh /usr/local/bin/startup.sh
-RUN chmod +x /usr/local/bin/startup.sh
+COPY services/koji-hub/startup.sh /app/startup.sh
+RUN chmod +x /app/startup.sh
 
 # Copy health check script
-COPY services/koji-hub/health-check.sh /usr/local/bin/health-check.sh
-RUN chmod +x /usr/local/bin/health-check.sh
+COPY services/koji-hub/health-check.sh /app/health-check.sh
+RUN chmod +x /app/health-check.sh
 
 # Copy hub-specific configuration templates
 COPY services/koji-hub/hub.conf.template /app/hub.conf.template
@@ -39,6 +41,6 @@ COPY services/koji-hub/httpd.conf.template /app/httpd.conf.template
 EXPOSE 80 443
 
 # Start hub service
-ENTRYPOINT ["/usr/bin/tini", "-g", "/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-g", "/app/entrypoint.sh"]
 
 # The end.

@@ -80,6 +80,7 @@ services:
       context: .
       dockerfile: services/common/Dockerfile
     image: koji-boxed-common
+    container_name: koji-boxed-common
     scales:
       common: 0
 
@@ -167,6 +168,7 @@ services:
       # our own builtin claims
       ORCH_PRINC: ${ORCH_PRINC:-orch@KOJI.BOX}
       ORCH_KEYTAB: ${ORCH_KEYTAB:-4e344539-8902-4ea1-8797-cd49de9e1c5f}
+      ORCH_LOG_LEVEL: ${ORCH_LOG_LEVEL:-INFO}
     volumes:
       # see SOCKET_README.md for details on using PODMAN_SOCKET with rootless podman
       - ${PODMAN_SOCKET:-/var/run/podman.sock}:/var/run/docker.sock
@@ -221,7 +223,7 @@ services:
         aliases:
           - koji-hub.koji.box
     healthcheck:
-      test: ["CMD-SHELL", "koji version || exit 1"]
+      test: ["CMD-SHELL", "koji --noauth version || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -238,7 +240,6 @@ services:
       dockerfile: services/koji-worker/Dockerfile
       additional_context:
         koji-boxed-common: service:common
-    hostname: koji-worker-1.koji.box
     depends_on:
       koji-hub:
         condition: service_healthy
@@ -247,15 +248,13 @@ services:
     environment:
       <<: [*common-base-settings,
            *orch-koji-worker-claims]
+      BUILDER_MAX_JOBS: ${BUILDER_MAX_JOBS:-10}
+      BUILDER_ARGS: ${BUILDER_ARGS:- --force-lock --verbose}
     volumes:
-      - koji_storage:/mnt/koji
+      - koji_storage:/mnt/koji:Z
       - ./data/logs/worker:/var/log/koji-worker
-    networks:
-      koji-network:
-        aliases:
-          - koji-worker-1.koji.box
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -v grep | grep koji-worker || exit 1"]
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep kojid || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -267,8 +266,6 @@ services:
           memory: 512m
     scales:
       koji-worker: ${KOJI_WORKER_COUNT:-0}
-    profiles:
-      - "workers"
 
   koji-web:
     build:
