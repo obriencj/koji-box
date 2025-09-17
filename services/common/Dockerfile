@@ -1,9 +1,46 @@
-FROM almalinux:9
-
 # Install system dependencies - consolidated from koji-hub and koji-worker
+
+
+# We need to be running on almalinux:10 in order to have a version of
+# createrepo_c that is compatible with modern fedora repositories. But
+# unfortunately, almalinux:10 EPEL doesn't include tini, which we need for hub
+# and worker and web. So we'll fetch the tini srpm from almalinux:9 and rebuild
+# it on almalinux:10 and then install that in our base image.
+
+
+FROM almalinux:9 as tini-srpm
+
 RUN dnf install -qy dnf-plugins-core epel-release && \
-    dnf config-manager --set-enabled crb && \
-    dnf install -qy \
+    dnf config-manager --set-enabled crb
+
+RUN dnf install -qy yum-utils
+RUN yumdownloader --source tini
+
+
+FROM almalinux:10 as build-tini
+
+RUN dnf install -qy dnf-plugins-core epel-release && \
+    dnf config-manager --set-enabled crb
+
+WORKDIR /build-tini
+RUN mkdir -p /build-tini/SRPMS /build-tini/RPMS
+
+COPY --from=tini-srpm /tini-*.src.rpm /build-tini/SRPMS/tini-*.src.rpm
+
+RUN dnf install -qy rpm-build && \
+    dnf builddep -qy /build-tini/SRPMS/tini-*.src.rpm && \
+    rpmbuild -rb /build-tini/SRPMS/tini-*.src.rpm  && \
+    mv /root/rpmbuild/RPMS/*/*.rpm /build-tini/RPMS/
+
+RUN ls /build-tini/RPMS/
+
+
+FROM almalinux:10
+
+RUN dnf install -qy dnf-plugins-core epel-release && \
+    dnf config-manager --set-enabled crb
+
+RUN dnf install -qy \
     bash \
     diffutils \
     gettext \
@@ -12,6 +49,7 @@ RUN dnf install -qy dnf-plugins-core epel-release && \
     krb5-workstation \
     make \
     openssl \
+    procps-ng \
     python3 \
     python3-dateutil \
     python3-defusedxml \
@@ -27,10 +65,13 @@ RUN dnf install -qy dnf-plugins-core epel-release && \
     python3-six \
     python3-wheel \
     shadow-utils \
-    tini \
     util-linux \
     which && \
     dnf clean all
+
+COPY --from=build-tini /build-tini/RPMS/ /tmp/tini/
+RUN dnf install -qy $(ls -d /tmp/tini/*.rpm | grep 'tini-[0-9].*rpm$') && \
+    rm -rf /tmp/tini/
 
 # Create koji user and group with consistent IDs
 RUN groupadd -g 1000 koji && \
