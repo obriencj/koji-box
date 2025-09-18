@@ -1,0 +1,6 @@
+---
+- name: Configure Koji Instance
+  hosts: koji-hub
+  gather_facts: false
+  roles:
+    - koji-data

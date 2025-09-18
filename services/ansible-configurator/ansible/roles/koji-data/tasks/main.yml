@@ -1,0 +1,71 @@
+---
+- name: Load configuration data from mounted directory
+  set_fact:
+    koji_users: "{{ lookup('file', '/ansible-configs/users.yml') | from_yaml | default([]) }}"
+    koji_hosts: "{{ lookup('file', '/ansible-configs/hosts.yml') | from_yaml | default([]) }}"
+    koji_tags: "{{ lookup('file', '/ansible-configs/tags.yml') | from_yaml | default([]) }}"
+    koji_targets: "{{ lookup('file', '/ansible-configs/targets.yml') | from_yaml | default([]) }}"
+
+- name: Verify koji connection
+  ktdreyer.koji_ansible.koji_call:
+    name: getAPIVersion
+  register: koji_version
+  changed_when: false
+
+- name: Display koji version
+  debug:
+    msg: "Configuring Koji API version: {{ koji_version.result }}"
+
+- name: Configure Koji users
+  ktdreyer.koji_ansible.koji_user:
+    name: "{{ item.name }}"
+    state: "{{ item.state | default('present') }}"
+    principals: "{{ [item.principal] if item.principal is defined else [] }}"
+  loop: "{{ koji_users }}"
+  when: koji_users | length > 0
+
+- name: Grant user permissions
+  ktdreyer.koji_ansible.koji_user_permission:
+    user: "{{ item.0.name }}"
+    permission: "{{ item.1 }}"
+    state: present
+  loop: "{{ koji_users | subelements('permissions', skip_missing=True) }}"
+  when: koji_users | length > 0
+
+- name: Configure Koji hosts
+  ktdreyer.koji_ansible.koji_host:
+    name: "{{ item.name }}"
+    arches: "{{ item.arches | default(['x86_64', 'noarch']) }}"
+    capacity: "{{ item.capacity | default(1.0) }}"
+    enabled: "{{ item.enabled | default(true) }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ koji_hosts }}"
+  when: koji_hosts | length > 0
+
+- name: Configure Koji tags
+  ktdreyer.koji_ansible.koji_tag:
+    name: "{{ item.name }}"
+    parent: "{{ item.parent | default(omit) }}"
+    locked: "{{ item.locked | default(false) }}"
+    maven_support: "{{ item.maven_support | default(false) }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ koji_tags }}"
+  when: koji_tags | length > 0
+
+- name: Configure Koji targets
+  ktdreyer.koji_ansible.koji_target:
+    name: "{{ item.name }}"
+    build_tag: "{{ item.build_tag }}"
+    dest_tag: "{{ item.dest_tag }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ koji_targets }}"
+  when: koji_targets | length > 0
+
+- name: Configuration summary
+  debug:
+    msg: |
+      Koji configuration completed:
+      - Users: {{ koji_users | length }}
+      - Hosts: {{ koji_hosts | length }}
+      - Tags: {{ koji_tags | length }}
+      - Targets: {{ koji_targets | length }}

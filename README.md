@@ -205,11 +205,12 @@ sudo ./services/common/orch.sh ca-install
 
 ### Ansible Configuration Management
 
-- `make configure` - Run Ansible configuration on existing Koji instance
+- `make validate-ansible` - Validate Ansible configuration files with comprehensive checks
+- `make configure` - Run Ansible configuration on existing Koji instance (includes validation)
+- `make configure-check` - Validate configuration without applying (dry-run)
 - `make reconfigure` - Force reconfiguration by restarting Ansible service
 - `make logs-ansible` - Show logs for Ansible Configurator
 - `make ansible-shell` - Get shell access to ansible configurator (for debugging)
-- `make validate-ansible` - Validate Ansible configuration files
 
 ### Maintenance
 
@@ -242,15 +243,14 @@ KOJI_STORAGE_PORT=80
 
 ### Ansible Configuration
 
-The `ansible-configs/` directory contains YAML files for automated Koji configuration:
+The `ansible-configs/` directory contains YAML data files for automated Koji configuration:
 
 - `ansible-configs/users.yml` - Define Koji users and permissions
 - `ansible-configs/hosts.yml` - Define build hosts and capabilities
 - `ansible-configs/tags.yml` - Define package tags and inheritance
 - `ansible-configs/targets.yml` - Define build targets
-- `ansible-configs/site.yml` - Main Ansible playbook
-- `ansible-configs/inventory.yml` - Koji environment inventory
-- `ansible-configs/group_vars/all.yml` - Global variables and defaults
+
+All Ansible infrastructure (playbooks, roles, collection) is built into the `ansible-configurator` service container. Users only need to configure data, not infrastructure.
 
 See `ansible-configs/README.md` for detailed configuration documentation.
 
@@ -280,7 +280,7 @@ These templates use environment variable substitution and are copied into contai
 # Build and start everything
 make quick-start
 
-# Apply custom Koji configuration
+# Validate and apply custom Koji configuration
 make configure
 
 # Check status
@@ -463,9 +463,9 @@ The nginx proxy will provide a unified entry point with the following planned ro
 
 ### ✅ Ansible Configurator
 - **Status**: Fully functional
-- **Purpose**: Automated Koji configuration management
+- **Purpose**: Automated Koji configuration management using ktdreyer.koji_ansible collection
 - **Access**: Run via `make configure` or `make reconfigure`
-- **Features**: User/host/tag/target management, declarative YAML configuration, state reset capability
+- **Features**: User/host/tag/target management, schema validation, fail-fast validation, declarative YAML configuration, state reset capability
 
 ### 🚧 Koji Client
 - **Status**: Working on reliability improvements

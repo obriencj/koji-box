@@ -55,32 +55,33 @@ authenticate() {
     fi
 }
 
+# Function to validate configuration files
+validate_config() {
+    log "Validating configuration files..."
+
+    if [[ ! -d "/ansible-configs" ]]; then
+        log "No configuration directory found at /ansible-configs"
+        log "Creating minimal example configuration..."
+        return 0
+    fi
+
+    # Run validation using our built-in script
+    if python3 /ansible/validation/validate_config.py --config-dir /ansible-configs; then
+        log "✓ Configuration validation passed"
+    else
+        log "⚠ Configuration validation failed"
+        exit 1
+    fi
+}
+
 # Function to run ansible playbooks
 run_ansible() {
     log "Starting Ansible configuration..."
 
-    cd /ansible-configs
+    cd /ansible
 
-    if [[ ! -f "site.yml" ]]; then
-        log "No site.yml playbook found, creating a minimal example..."
-        cat > site.yml << 'EOF'
----
-- name: Configure Koji Instance
-  hosts: koji-hub
-  gather_facts: false
-  tasks:
-    - name: Verify koji connection
-      shell: koji --noauth version
-      register: koji_version
-
-    - name: Display koji version
-      debug:
-        msg: "Koji version: {{ koji_version.stdout }}"
-EOF
-    fi
-
-    # Run the main playbook
-    if ansible-playbook -i inventory.yml site.yml; then
+    # Run the main playbook (now baked into container)
+    if ansible-playbook site.yml; then
         log "✓ Ansible configuration completed successfully"
     else
         log "⚠ Ansible configuration failed (exit code: $?)"
@@ -97,6 +98,9 @@ main() {
 
     # Authenticate with Kerberos
     authenticate
+
+    # Validate configuration files
+    validate_config
 
     # Run ansible configuration
     run_ansible

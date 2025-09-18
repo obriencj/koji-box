@@ -1,0 +1,4 @@
+---
+collections:
+  - name: ktdreyer.koji_ansible
+    version: ">=1.0.0"

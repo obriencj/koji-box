@@ -188,10 +188,17 @@ restore: ## Restore from backup (requires BACKUP_DIR)
 	@echo -e "$(GREEN)Restore completed$(NC)"
 
 # Ansible Configuration Management
-configure: ## Run Ansible configuration on existing Koji instance
+configure: validate-ansible ## Run Ansible configuration on existing Koji instance
 	@echo -e "$(BLUE)Running Ansible configuration...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) --profile ansible up --build ansible-configurator
 	@echo -e "$(GREEN)Ansible configuration completed$(NC)"
+
+configure-check: validate-ansible ## Validate configuration without applying (dry-run)
+	@echo -e "$(BLUE)Running Ansible configuration check (dry-run)...$(NC)"
+	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) --profile ansible run --rm \
+		--entrypoint /bin/bash ansible-configurator -c \
+		"cd /ansible && ansible-playbook site.yml --check --diff"
+	@echo -e "$(GREEN)Ansible configuration check completed$(NC)"
 
 reconfigure: ## Force reconfiguration by restarting Ansible service
 	@echo -e "$(BLUE)Force reconfiguring Koji with Ansible...$(NC)"
@@ -207,20 +214,13 @@ ansible-shell: ## Get shell access to ansible configurator (for debugging)
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) --profile ansible run --rm \
 		--entrypoint /bin/bash ansible-configurator
 
-validate-ansible: ## Validate Ansible configuration files
+validate-ansible: ## Validate Ansible configuration files with comprehensive checks
 	@echo -e "$(BLUE)Validating Ansible configuration...$(NC)"
-	@if [ ! -d "ansible-configs" ]; then \
-		echo -e "$(RED)Error: ansible-configs directory not found$(NC)"; \
+	@if [ ! -x "scripts/validate-ansible-config.py" ]; then \
+		echo -e "$(RED)Error: validation script not found or not executable$(NC)"; \
 		exit 1; \
 	fi
-	@echo -e "$(BLUE)Checking YAML syntax...$(NC)"
-	@for file in ansible-configs/*.yml; do \
-		if [ -f "$$file" ]; then \
-			echo "Validating $$file..."; \
-			python3 -c "import yaml; yaml.safe_load(open('$$file'))" || exit 1; \
-		fi; \
-	done
-	@echo -e "$(GREEN)✓ All Ansible configuration files are valid$(NC)"
+	@python3 scripts/validate-ansible-config.py
 
 
 # The end.

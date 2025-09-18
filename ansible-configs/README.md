@@ -1,54 +1,48 @@
-# Koji Ansible Configuration
+# Koji Data Configuration
 
-This directory contains Ansible configurations for automatically setting up users, hosts, tags, and targets in your Koji instance.
+This directory contains YAML data files for configuring your Koji instance. All infrastructure and orchestration logic is built into the `ansible-configurator` service - you only need to define your Koji data here.
 
 ## Overview
 
 The `ansible-configurator` service runs as a separate container that configures your Koji instance after it starts up. This approach allows you to:
 
-- **Declaratively define** your Koji configuration in YAML files
+- **Declaratively define** your Koji data in simple YAML files
 - **Version control** your Koji setup alongside your code
 - **Reset state** easily by rerunning the configuration
-- **Customize** your Koji instance without modifying core services
+- **Focus on data** without worrying about infrastructure complexity
 
 ## Quick Start
 
-1. **Edit the configuration files** in this directory to match your needs
-2. **Start your Koji environment**: `make up`
-3. **Run the Ansible configuration**: `make configure`
+1. **Edit the data files** in this directory to match your needs
+2. **Validate your configuration**: `make validate-ansible`
+3. **Start your Koji environment**: `make up`
+4. **Run the Ansible configuration**: `make configure`
 
-## Configuration Files
+## Data Files
 
-### Core Files
-
-- **`site.yml`** - Main Ansible playbook that orchestrates all configuration
-- **`inventory.yml`** - Defines the Koji hosts to configure
-- **`ansible.cfg`** - Ansible configuration settings
-
-### Configuration Data Files
+This directory contains **only data files** - all Ansible infrastructure is built into the container:
 
 - **`users.yml`** - Define Koji users and their permissions
 - **`hosts.yml`** - Define build hosts and their capabilities
 - **`tags.yml`** - Define package tags and inheritance
 - **`targets.yml`** - Define build targets
 
-### Variables
-
-- **`group_vars/all.yml`** - Global variables and defaults
-
 ## Usage Commands
 
 ### Basic Operations
 
 ```bash
+# Validate configuration files (recommended first step)
+make validate-ansible
+
 # Run Ansible configuration (first time or after changes)
 make configure
 
+# Check what would change without applying (dry-run)
+make configure-check
+
 # Force reconfiguration (removes and recreates container)
 make reconfigure
-
-# Validate YAML syntax before running
-make validate-ansible
 
 # View Ansible logs
 make logs-ansible
@@ -143,10 +137,18 @@ When defining users, you can grant these permissions:
 
 ### How It Works
 
-1. The `ansible-configurator` service waits for `koji-hub` to be healthy
-2. It authenticates using the admin keytab from the orchestration service
-3. It runs the `site.yml` playbook against the local Koji instance
-4. The container exits after successful configuration
+1. All Ansible infrastructure (playbooks, roles, collection) is **built into the container**
+2. The `ansible-configurator` service waits for `koji-hub` to be healthy
+3. It validates your data files using built-in schema validation
+4. It authenticates using the admin keytab from the orchestration service
+5. It applies your configuration using the `ktdreyer.koji_ansible` collection
+6. The container exits after successful configuration
+
+### Clean Separation
+
+- **Infrastructure**: Hidden inside the container (playbooks, roles, collection, validation)
+- **Data**: User-configurable YAML files in this directory
+- **You can't break** the service interconnectivity - only configure Koji data
 
 ### Service Profile
 
