@@ -4,7 +4,7 @@ A containerized integration testing platform for the [Koji build system](https:/
 
 ## Overview
 
-Boxed Koji creates a fully functional Koji build system with all necessary components, providing a "Koji in a box" experience that hides service complexity while exposing Koji's full functionality. 
+Boxed Koji creates a fully functional Koji build system with all necessary components, providing a "Koji in a box" experience that hides service complexity while exposing Koji's full functionality.
 
 ### ✅ Working Services
 - **[PostgreSQL](https://www.postgresql.org/) Database** - Backend data storage
@@ -531,6 +531,18 @@ This project leverages several key open-source technologies:
 - **[Ansible](https://www.ansible.com/)** - Automation platform for configuration management
 - **[ktdreyer.koji_ansible](https://github.com/ktdreyer/koji-ansible)** - Official Ansible collection for Koji management
 - **[Podman](https://podman.io/)** - Daemonless container engine for running containerized services
+
+## Development Acknowledgments
+
+This project was developed with significant assistance from **Claude** (Anthropic's AI assistant), particularly in:
+
+- **Architectural Design**: Clean separation between infrastructure and data layers
+- **Ansible Integration**: Complete restructure to use the `ktdreyer.koji_ansible` collection with a "hidden infrastructure, visible data" approach
+- **Validation System**: Comprehensive Python-based configuration validation with fail-fast error reporting
+- **Documentation**: Extensive documentation including troubleshooting guides, usage examples, and architectural explanations
+- **Best Practices**: Implementation of containerization patterns, error handling, and user experience design
+
+The AI assistance helped transform the initial concept into a production-ready "Koji in a box" solution that provides a unified application view while maintaining the flexibility and power of the underlying Koji ecosystem. The collaboration demonstrates how AI can accelerate complex system development while maintaining high code quality and comprehensive documentation standards.
 
 ## Contributing
 
