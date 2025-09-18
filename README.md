@@ -539,34 +539,32 @@ This project leverages several key open-source technologies:
 - **[Ansible](https://www.ansible.com/)** - Automation platform for configuration management
 - **[ktdreyer.koji_ansible](https://github.com/ktdreyer/koji-ansible)** - Official Ansible collection for Koji management
 - **[Podman](https://podman.io/)** - Daemonless container engine for running containerized services
+- **[Python](https://python.org)** - The Orchestrator is written using [Flask] running under [Gunicorn]
+
+[Flask]: https://github.com/pallets/flask/
+[Gunicorn]: https://github.com/benoitc/gunicorn
+
+
+## Contact
+
+Author: Christopher O'Brien  <obriencj@gmail.com>
+Original GitHub Project: https://github.com/obriencj/koji-box
+
 
 ## Development Acknowledgments
 
-This project was developed with significant assistance from **Claude** (Anthropic's AI assistant), particularly in:
+This project was developed with significant assistance from **Claude** (Anthropic's
+AI assistant). The AI assistance has been invaluable in bootstrapping and
+providing feedback on the initial concept. The Orchestrator, in particular, is
+primarily AI-generated code, with some human tweaks to ensure correct
+functionality. Almost every README is also AI-generated, and sections are kept
+up-to-date with the project's state via AI.
 
-- **Architectural Design**: Clean separation between infrastructure and data layers
-- **Ansible Integration**: Complete restructure to use the `ktdreyer.koji_ansible` collection with a "hidden infrastructure, visible data" approach
-- **Validation System**: Comprehensive Python-based configuration validation with fail-fast error reporting
-- **Documentation**: Extensive documentation including troubleshooting guides, usage examples, and architectural explanations
-- **Best Practices**: Implementation of containerization patterns, error handling, and user experience design
-
-The AI assistance helped transform the initial concept into a production-ready "Koji in a box" solution that provides a unified application view while maintaining the flexibility and power of the underlying Koji ecosystem. The collaboration demonstrates how AI can accelerate complex system development while maintaining high code quality and comprehensive documentation standards.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with `make test`
-5. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This library is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version.
 
-## Support
+This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-For issues and questions:
-1. Check the troubleshooting section
-2. Review service logs
-3. Open an issue on the project repository
+You should have received a copy of the GNU General Public License along with this library; if not, see http://www.gnu.org/licenses/.
