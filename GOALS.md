@@ -2,6 +2,7 @@
 
 This document tracks the large-scale objectives for the Boxed Koji integration testing platform. Goals are organized by category and include current implementation status.
 
+
 ## 🎯 Core Platform Goals
 
 ### 🚧 **IN PROGRESS** - Containerized Koji Environment
@@ -40,11 +41,12 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 ### ✅ **DONE** - Koji Hub
 - [x] Central coordination service implementation
 - [x] Integration with Orch service for resource management
-- [x] User and tag management
+- [x] Integration with KDC for authentication
 - [x] API endpoint functionality
 - [x] Health checks and monitoring
 
 ### 🚧 **IN PROGRESS** - Koji Client
+- [x] Client available as a service
 - [x] Basic CLI interface implementation
 - [x] Kerberos authentication integration
 - [ ] Automated testing integration
@@ -56,7 +58,7 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 - [x] kojid runs
 - [ ] Mock/chroot build environments
 - [ ] Resource scaling and load balancing
-- [ ] Build artifact management
+- [ ] Multiple architectures
 
 ### 🚧 **IN PROGRESS** - Koji Web Interface
 - [x] Service structure and dependencies
@@ -67,12 +69,17 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 - [ ] Package browsing and search functionality
 
 ### 🚧 **IN PROGRESS** - Nginx Reverse Proxy
-- [x] Service structure in Docker Compose
+- [x] Service structure in compose
 - [ ] Unified entry point configuration
 - [ ] Static content serving from `/mnt/koji`
 - [ ] SSL termination and certificate management
 - [ ] Load balancing for multiple workers
 - [ ] Health check endpoints
+
+### 🚧 **IN PROGRESS** - Ansible Configurator
+ - [x] Service structure in compose
+ - [x] Easily define common koji data structures
+ - [ ] Define hub policies
 
 ## 🧪 Testing & Quality Assurance
 
@@ -174,7 +181,6 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 - [ ] Best practices documentation
 
 ## 🎯 Long-term Vision
-
 
 ### 📋 **PLANNED** - Ecosystem Expansion
 - [ ] Integration with content generators (atomic reactor, osbuild, pnc)
