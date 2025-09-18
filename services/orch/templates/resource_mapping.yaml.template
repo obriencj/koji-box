@@ -59,4 +59,9 @@ ${KOJI_NGINX_KEY}:
 ${ORCH_KEYTAB}:
   type: principal
   resource: ${ORCH_PRINC}
-  description: Principal for the Orch service (needs koji host permissions)
+  description: Principal for the Orch service (needs koji admin)
+
+${ANSIBLE_KEYTAB}
+  type: principal
+  resource: ${ANSIBLE_PRINC}
+  description: Principal for the Ansible configurator (needs koji admin)

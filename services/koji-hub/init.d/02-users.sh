@@ -45,6 +45,7 @@ function ensure_user_principal() {
 ensure_user_principal "${KOJI_CLIENT_PRINC}" tag target dist-repo maven-import
 ensure_user_principal "${KOJI_CLIENT_ADMIN_PRINC}" admin
 ensure_user_principal "${ORCH_PRINC}" admin host
+ensure_user_principal "${ANSIBLE_PRINC}" admin
 
 
 # The end.

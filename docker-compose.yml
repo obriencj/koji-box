@@ -38,6 +38,7 @@ x-common-koji-admin: &common-koji-admin
 
 # additional principal names the hub needs to know about during initialization
 x-common-koji-hub: &koji-hub-principals
+  ANSIBLE_PRINC: ${ANSIBLE_PRINC:-ansible@KOJI.BOX}
   ORCH_PRINC: ${ORCH_PRINC:-orch@KOJI.BOX}
   KOJI_CLIENT_PRINC: ${KOJI_CLIENT_PRINC:-friend@KOJI.BOX}
   KOJI_CLIENT_ADMIN_PRINC: ${KOJI_CLIENT_ADMIN_PRINC:-superfriend@KOJI.BOX}
@@ -72,6 +73,9 @@ x-common-koji-nginx-cert: &orch-nginx-claims
   KOJI_NGINX_CERT_CN: ${KOJI_NGINX_CERT_CN:-koji.box}
   KOJI_NGINX_KEY: ${KOJI_NGINX_KEY:-c016e63d-d250-4b57-af1e-2f35fd5b51fe}
 
+x-common-ansible: &orch-ansible-claims
+  ANSIBLE_KEYTAB: ${KOJI_ANSIBLE_KEYTAB:-4e344539-8902-4ea1-8797-cd49de9e1c5f}
+  ANSIBLE_PRINC: ${KOJI_ANSIBLE_PRINC:-ansible@KOJI.BOX}
 
 services:
 
@@ -166,7 +170,8 @@ services:
            *orch-koji-web-claims,
            *orch-koji-client-claims,
            *orch-koji-worker-claims,
-           *orch-nginx-claims]
+           *orch-nginx-claims,
+           *orch-ansible-claims]
       # our own builtin claims
       ORCH_PRINC: ${ORCH_PRINC:-orch@KOJI.BOX}
       ORCH_KEYTAB: ${ORCH_KEYTAB:-4e344539-8902-4ea1-8797-cd49de9e1c5f}
@@ -384,10 +389,9 @@ services:
         condition: service_healthy
     environment:
       <<: [*common-base-settings,
-           *common-koji-admin]
+           *orch-ansible-claims]
     volumes:
-      - ./ansible-configs:/ansible-configs:ro,Z
-      - orch_data:/mnt/data:ro
+      - ./ansible-configs:/mnt/ansible-configs:ro,Z
     networks:
       koji-network:
         aliases:
