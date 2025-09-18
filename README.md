@@ -1,6 +1,6 @@
 # Boxed Koji
 
-A containerized integration testing platform for the [Koji build system](https://pagure.io/koji). This project provides a complete, repeatable Koji environment using [Podman](https://podman.io/) and Docker Compose for automated integration testing. Koji data (users, tags, targets, etc) can be bootstrapped or enforced as YAML (deployed via [Ansible](https://www.ansible.com/)).
+A containerized integration testing platform for the [Koji build system](https://pagure.io/koji). This project provides a complete, repeatable Koji environment using [Podman](https://podman.io/) and Docker Compose. Koji data (users, tags, targets, etc) can be bootstrapped or enforced as YAML (deployed via [Ansible](https://www.ansible.com/)).
 
 ## Overview
 
@@ -48,15 +48,17 @@ Boxed Koji creates a fully functional Koji build system with all necessary compo
 
 4. **Access services**:
    - **Working Services**:
-     - Koji Hub: http://koji-hub.koji.box:80 (fully functional with orch integration)
-     - Orch Service: http://orch.koji.box:5000 (resource management with CA support)
      - KDC: kdc.koji.box:88 (Kerberos)
      - PostgreSQL: postgres.koji.box:5432
+     - Orch Service: http://orch.koji.box:5000 (resource management with CA support)
+     - Koji Hub: https://koji-hub.koji.box (fully functional with orch integration)
+     - Koji Client: shell with koji and kerberos pre-configured for interactive sessions
+     - Koji Workers: scalable, self-registering koji builders
+
    - **In Progress** (coming soon):
-     - Koji Client: CLI interface (reliability improvements in progress)
      - Main Entry Point: http://localhost:8080 (nginx proxy)
      - Koji Web: http://localhost:8081 (or http://koji-web.koji.box:8081)
-     - Koji Workers: Build execution nodes (via `make up --profile workers`)
+     - Koji Desktop: a VNC enabled desktop with configured firefox and terminal
 
 ## Recent Updates
 
@@ -157,9 +159,9 @@ The Orch Service is a comprehensive resource management system that provides sec
 - **Certificate Authority (CA)**: Manages its own CA for signing SSL certificates
 - **SSL Certificate Management**: Creates and manages SSL certificates signed by the CA
 - **Container-based Security**: IP-based container identification and resource checkout system
-- **UUID-based Access**: Resources accessed via UUIDs for enhanced security
+- **UUID-based Access**: Resources accessed via UUIDs for mild security
 
-**V2 API Endpoints (Recommended):**
+** API Endpoints:**
 - `POST /api/v2/resource/<uuid>` - Checkout a resource by UUID
 - `DELETE /api/v2/resource/<uuid>` - Release a resource by UUID
 - `GET /api/v2/resource/<uuid>/status` - Get resource status
@@ -169,11 +171,20 @@ The Orch Service is a comprehensive resource management system that provides sec
 - `GET /api/v2/ca/status` - Get CA status
 - `GET /api/v2/status/health` - Health check endpoint
 
-**V1 API Endpoints (Legacy):**
-- `GET /api/v1/principal/<principal_name>` - Get or create a principal and return its keytab
-- `GET /api/v1/worker/<worker_name>` - Get or create a worker host and return its keytab
-- `GET /api/v1/cert/<cn>` - Get SSL certificate
-- `GET /api/v1/cert/key/<cn>` - Get SSL private key
+
+**Checkout Explanation**
+
+The original v1 API allowed arbitrary creation of any principal keytab, and certificate. This was convenient,
+but left me feeling concerned. While this serivce is not intended to be used as a production-ready long-running
+koji instance, it still didn't seem wise to give every service the ability to grab the principal for the hub,
+or the KDC master account. So instead I went with a checkout system, where a UUID is used to anonymize the
+resource request as a claim. When a service checks out their claim, the orch will identify what container
+is making the request, then mark the resource as "checked-out" by that container. No other container can then
+use the same claim UUID, so long as the one that checked out the resource is still alive. Resources can be
+checked back in manually, or automatically if their requestor container disappears. With this system, the
+services are given their relevant claim UUIDs via the environment, and from there they can fetch keytabs
+or certificates.
+
 
 **Orch CLI Usage:**
 ```bash
@@ -189,20 +200,6 @@ The Orch Service is a comprehensive resource management system that provides sec
 ./services/common/orch.sh docs                       # Show API documentation
 ```
 
-**Direct API Usage:**
-```bash
-# Get a principal keytab (V1 API)
-curl -o my-principal.keytab http://orch.koji.box:5000/api/v1/principal/my-principal
-
-# Get a worker keytab and register with hub (V1 API)
-curl -o worker.keytab http://orch.koji.box:5000/api/v1/worker/worker-1
-
-# Get CA certificate
-curl -o ca.crt http://orch.koji.box:5000/api/v2/ca/certificate
-
-# Install CA certificate to system trust store
-sudo ./services/common/orch.sh ca-install
-```
 
 ### Ansible Configuration Management
 
@@ -255,23 +252,16 @@ All Ansible infrastructure (playbooks, roles, collection) is built into the `ans
 
 See `ansible-configs/README.md` for detailed configuration documentation.
 
-### Service Configuration
 
-Each service has its own configuration directory under `configs/`:
+### General Services Configuration
 
-- `configs/koji-hub/` - Hub configuration (now uses template-based generation)
-- `configs/koji-web/koji_web.conf` - Web UI configuration
-- `configs/koji-client/koji.conf` - Client configuration
+Configurations that are required to make this service stack functional are baked-in to the images
+at build time as templates. These templates are combined with environment vars to produce the actual
+config files at startup via the entrypoint. The eventual goal of this mode of configuration is to
+make it so that a user can tweak the knobs, but not completely break the deployment. As this project
+is still a work in progress, there are still some settings that might break things, and still some
+things being mandatory at runtime init.
 
-### Shared Configuration
-
-Common configuration templates are available in `configs/shared/`:
-
-- `configs/shared/koji.conf.template` - Koji client configuration template
-- `configs/shared/krb5.conf.template` - Kerberos configuration template
-- `configs/shared/hub.conf.template` - Koji hub configuration template
-
-These templates use environment variable substitution and are copied into containers during build, allowing for consistent configuration across all services.
 
 ## Usage Examples
 
@@ -405,25 +395,43 @@ All services run on a custom bridge network (`koji-network`) with subnet `172.20
 
 ### Service Dependencies
 
-**Current Working Architecture:**
+**Current Architecture:**
 ```
-postgres → koji-hub ←─── orch-service
-    ↓         ↓              ↓
-   kdc ←──────┘              ↓
-    ↓                       ↓
-orch-service ←─── koji-client (reliability improvements)
+  ╔════════════════╗                        ╔════════════════╗
+  ║    Postgres    ║           ┌────────────╢       KDC      ║◄────┐
+  ╚════════════════╝           │            ╚════════════════╝     │
+         ▲                     │                     ▲             │
+         │                     │                     │             │
+  ╔════════════════╗◄──────────┘           ╔════════════════╗      │
+  ║    Koji-Hub    ║◄────────────────────► ║      Orch      ║◄─────┤
+  ╚════════════════╝                       ╚════════════════╝      │
+         ▲                                                         │
+         │                                                         │
+         │                ╔════════════════╗                       │
+         ├────────────────║   Koji-Client  ║───────────────────────┤
+         │                ╚════════════════╝                       │
+         │                                                         │
+         │                ╔════════════════╗                       │
+         ├────────────────║  Koji-Workers  ║───────────────────────┤
+         │                ╚════════════════╝                       │
+         │                                                         │
+         │                ╔════════════════╗                       │
+         ├────────────────║    Koji-Web    ║───────────────────────┤
+         │                ╚════════════════╝                       │
+         │                                                         │
+         │                ╔════════════════╗                       │
+         └────────────────║     Ansible    ║───────────────────────┘
+                          ╚════════════════╝
 ```
 
-**Planned Full Architecture:**
-```
-postgres → koji-hub → koji-worker
-    ↓         ↓           ↓
-   kdc ←──────┴───────────┘
-    ↓
-koji-web ←─── nginx (main entry point)
-    ↓
-orch-service ←─── test-runner
-```
+**Service Startup Order:**
+1. **postgres** - Database backend
+2. **kdc** - Kerberos authentication
+3. **orch-service** - Resource management (depends on kdc)
+4. **koji-hub** - Central coordination (depends on postgres, orch-service)
+5. **koji-workers** - Build nodes (depend on koji-hub, orch-service, self-register)
+6. **koji-client** - Interactive shell (depends on koji-hub, orch-service)
+7. **ansible-configurator** - Configuration management (optional, depends on koji-hub)
 
 ### Nginx Routing (In Progress)
 
