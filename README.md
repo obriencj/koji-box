@@ -1,4 +1,4 @@
-# Boxed Koji
+# Koji in a Box
 
 A containerized integration testing platform for the [Koji build system](https://pagure.io/koji). This project provides a complete, repeatable Koji environment using [Podman](https://podman.io/) and Docker Compose. Koji data (users, tags, targets, etc) can be bootstrapped or enforced as YAML (deployed via [Ansible](https://www.ansible.com/)).
 
@@ -548,8 +548,8 @@ This project leverages several key open-source technologies:
 - **[Podman](https://podman.io/)** - Daemonless container engine for running containerized services
 - **[Python](https://python.org)** - The Orchestrator is written using [Flask] running under [Gunicorn]
 
-[Flask]: https://github.com/pallets/flask/
-[Gunicorn]: https://github.com/benoitc/gunicorn
+[Flask]: https://flask.palletsprojects.com/en/stable/
+[Gunicorn]: https://gunicorn.org/
 
 
 ## Contact
