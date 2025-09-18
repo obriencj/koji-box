@@ -5,11 +5,12 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 
 ## 🎯 Core Platform Goals
 
-### 🚧 **IN PROGRESS** - Containerized Koji Environment
-- [ ] Create complete containerized Koji build system (hub, workers, and web)
+### ✅ **DONE** - Containerized Koji Environment
+- [x] Create complete containerized Koji build system (hub, workers, and web)
 - [x] Implement Docker Compose orchestration with Podman support
 - [x] Establish custom bridge network architecture (`koji-network`)
 - [x] Provide reproducible, isolated testing environment
+- [x] "Koji in a box" unified application view
 
 ### ✅ **DONE** - Database Infrastructure
 - [x] PostgreSQL backend with persistent storage
@@ -42,6 +43,7 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 - [x] Central coordination service implementation
 - [x] Integration with Orch service for resource management
 - [x] Integration with KDC for authentication
+- [x] User and tag management
 - [x] API endpoint functionality
 - [x] Health checks and monitoring
 
@@ -50,15 +52,17 @@ This document tracks the large-scale objectives for the Boxed Koji integration t
 - [x] Basic CLI interface implementation
 - [x] Kerberos authentication integration
 - [ ] Automated testing integration
+- [ ] Reliability improvements
 
 ### 🚧 **IN PROGRESS** - Koji Workers
 - [x] Basic worker service structure
 - [x] Resource management via Orch service
 - [x] Scalable from compose
-- [x] kojid runs
+- [x] kojid runs and basic functionality
+- [x] Self-registration with Koji Hub
 - [ ] Mock/chroot build environments
 - [ ] Resource scaling and load balancing
-- [ ] Multiple architectures
+- [ ] Advanced build features
 
 ### 🚧 **IN PROGRESS** - Koji Web Interface
 - [x] Service structure and dependencies
@@ -205,5 +209,18 @@ This section will track major scope changes and their impact:
 
 ---
 
-**Last Updated:** September 17, 2025
+## 🙏 Technology Attribution
+
+This project builds upon several excellent open-source technologies:
+
+- **[Koji](https://pagure.io/koji)** - The core RPM build system developed by Red Hat
+- **[PostgreSQL](https://www.postgresql.org/)** - Advanced open source relational database
+- **[MIT Kerberos](https://web.mit.edu/kerberos/)** - Network authentication protocol
+- **[Ansible](https://www.ansible.com/)** - IT automation platform by Red Hat
+- **[ktdreyer.koji_ansible](https://github.com/ktdreyer/koji-ansible)** - Community Ansible collection for Koji
+- **[Podman](https://podman.io/)** - Daemonless container engine by Red Hat
+
+---
+
+**Last Updated:** September 18, 2025
 **Next Review:** To be scheduled based on development progress

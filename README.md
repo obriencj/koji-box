@@ -1,23 +1,23 @@
 # Boxed Koji
 
-A containerized integration testing platform for the Koji build system. This project provides a complete, repeatable Koji environment using Podman and Docker Compose for automated integration testing.
+A containerized integration testing platform for the [Koji build system](https://pagure.io/koji). This project provides a complete, repeatable Koji environment using [Podman](https://podman.io/) and Docker Compose for automated integration testing. Koji data (users, tags, targets, etc) can be bootstrapped or enforced as YAML (deployed via [Ansible](https://www.ansible.com/)).
 
 ## Overview
 
-Boxed Koji creates a fully functional Koji build system with all necessary components. The project has recently migrated to a new **Orch Service** and **orch.sh tool** for comprehensive resource management.
+Boxed Koji creates a fully functional Koji build system with all necessary components, providing a "Koji in a box" experience that hides service complexity while exposing Koji's full functionality. 
 
 ### ✅ Working Services
-- **PostgreSQL Database** - Backend data storage
-- **KDC (Kerberos)** - Authentication service with realm KOJI.BOX
-- **Orch Service** - REST API for resource management with CA certificate support
-- **Koji Hub** - Central coordination service (fully functional with orch integration)
-- **Ansible Configurator** - Automated Koji configuration management
+- **[PostgreSQL](https://www.postgresql.org/) Database** - Backend data storage
+- **[MIT Kerberos](https://web.mit.edu/kerberos/) KDC** - Authentication service with realm KOJI.BOX
+- **Orch Service** - REST API for sharing keytabs, certificates, a self-signed CA, and registering workers
+- **Koji Hub** - Central coordination service for Koji
+- **Ansible Configurator** - Automated Koji configuration management using [ktdreyer.koji_ansible](https://github.com/ktdreyer/koji-ansible)
 
 ### 🚧 In Progress Services
 - **Koji Client** - CLI interface (working on reliability improvements)
+- **Koji Workers** - Build execution nodes (basic functionality working, advanced features in development)
 - **Nginx Proxy** - Reverse proxy and static content server
 - **Koji Web** - Web frontend interface
-- **Koji Workers** - Build execution nodes
 - **Test Runner** - Automated testing framework
 
 ## Quick Start
@@ -74,9 +74,10 @@ See the [Orch Service README](services/orch/README.md) for detailed documentatio
 
 ## Prerequisites
 
-- Podman with podman-compose
+- [Podman](https://podman.io/) with podman-compose
 - Git
 - Make
+- Python 3 (for validation scripts)
 - Internet connection (for downloading Koji source)
 - Container socket access (see SOCKET_README.md for configuration)
 
@@ -463,7 +464,7 @@ The nginx proxy will provide a unified entry point with the following planned ro
 
 ### ✅ Ansible Configurator
 - **Status**: Fully functional
-- **Purpose**: Automated Koji configuration management using ktdreyer.koji_ansible collection
+- **Purpose**: Automated Koji configuration management using [ktdreyer.koji_ansible](https://github.com/ktdreyer/koji-ansible) collection
 - **Access**: Run via `make configure` or `make reconfigure`
 - **Features**: User/host/tag/target management, schema validation, fail-fast validation, declarative YAML configuration, state reset capability
 
@@ -519,6 +520,17 @@ All services are accessible via both short names and full domain names:
 - `koji-worker-1` or `koji-worker-1.koji.box`
 - `koji-web` or `koji-web.koji.box`
 - `koji-client` or `koji-client.koji.box`
+
+## Technologies Used
+
+This project leverages several key open-source technologies:
+
+- **[Koji](https://pagure.io/koji)** - The core build system for RPM packages
+- **[PostgreSQL](https://www.postgresql.org/)** - Robust relational database for Koji's backend storage
+- **[MIT Kerberos](https://web.mit.edu/kerberos/)** - Network authentication protocol for secure service communication
+- **[Ansible](https://www.ansible.com/)** - Automation platform for configuration management
+- **[ktdreyer.koji_ansible](https://github.com/ktdreyer/koji-ansible)** - Official Ansible collection for Koji management
+- **[Podman](https://podman.io/)** - Daemonless container engine for running containerized services
 
 ## Contributing
 
