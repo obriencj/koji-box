@@ -397,41 +397,48 @@ All services run on a custom bridge network (`koji-network`) with subnet `172.20
 
 **Current Architecture:**
 ```
-  ╔════════════════╗                        ╔════════════════╗
-  ║    Postgres    ║           ┌────────────╢       KDC      ║◄────┐
-  ╚════════════════╝           │            ╚════════════════╝     │
-         ▲                     │                     ▲             │
-         │                     │                     │             │
-  ╔════════════════╗◄──────────┘           ╔════════════════╗      │
-  ║    Koji-Hub    ║◄────────────────────► ║      Orch      ║◄─────┤
-  ╚════════════════╝                       ╚════════════════╝      │
-         ▲                                                         │
-         │                                                         │
-         │                ╔════════════════╗                       │
-         ├────────────────║   Koji-Client  ║───────────────────────┤
-         │                ╚════════════════╝                       │
-         │                                                         │
-         │                ╔════════════════╗                       │
-         ├────────────────║  Koji-Workers  ║───────────────────────┤
-         │                ╚════════════════╝                       │
-         │                                                         │
-         │                ╔════════════════╗                       │
-         ├────────────────║    Koji-Web    ║───────────────────────┤
-         │                ╚════════════════╝                       │
-         │                                                         │
-         │                ╔════════════════╗                       │
-         └────────────────║     Ansible    ║───────────────────────┘
-                          ╚════════════════╝
+  ╔════════════════╗                      ╔════════════════╗
+  ║    Postgres    ║          ┌─────────► ║      KDC       ║ ◄───┐
+  ╚════════════════╝          │           ╚════════════════╝     │
+         ▲                    │                  ▲               │
+         │                    │                  │               │
+  ╔════════════════╗          │           ╔════════════════╗     │
+  ║    Koji-Hub    ║──────────┴─────────► ║      Orch      ║ ◄───┤
+  ╚════════════════╝                      ╚════════════════╝     │
+         ▲  ▲                                    │               │
+         │  └────────────────────────────────────┘               │
+         │                                                       │
+         │            ╔════════════════╗                         │
+         ├────────────║  Koji-Workers  ║─────────────────────────┤
+         │            ╚════════════════╝                         │
+         │                    │                                  │
+         │                    ▼                                  │
+         │            ╔════════════════╗                         │
+         ├────────────║    Koji-Web    ║─────────────────────────┤
+         │            ╚════════════════╝                         │
+         │                    ▲                                  │
+         │                    │                                  │
+         │            ╔════════════════╗                         │
+         ├────────────║   Koji-Client  ║─────────────────────────┤
+         │            ╚════════════════╝                         │
+         │                                                       │
+         │            ╔════════════════╗                         │
+         └────────────║    Ansible     ║─────────────────────────┘
+                      ╚════════════════╝
 ```
 
 **Service Startup Order:**
-1. **postgres** - Database backend
-2. **kdc** - Kerberos authentication
-3. **orch-service** - Resource management (depends on kdc)
-4. **koji-hub** - Central coordination (depends on postgres, orch-service)
-5. **koji-workers** - Build nodes (depend on koji-hub, orch-service, self-register)
-6. **koji-client** - Interactive shell (depends on koji-hub, orch-service)
-7. **ansible-configurator** - Configuration management (optional, depends on koji-hub)
+1. **postgres** - Database backend <br />
+   **kdc** - Kerberos authentication
+2. **orch-service** - Resource management
+3. **koji-hub** - Central coordination
+4. **koji-workers** - Build nodes <br />
+   **koji-client** - Interactive shell <br />
+   **ansible-configurator** - Configuration management (optional)
+
+The orch service is generally required for any service to fetch its CA certs and keytabs,
+and from there the keytab is necessary to kinit against the kdc for authentication with
+the koji-hub.
 
 ### Nginx Routing (In Progress)
 
