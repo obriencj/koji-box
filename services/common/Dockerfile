@@ -5,7 +5,9 @@
 # createrepo_c that is compatible with modern fedora repositories. But
 # unfortunately, almalinux:10 EPEL doesn't include tini, which we need for hub
 # and worker and web. So we'll fetch the tini srpm from almalinux:9 and rebuild
-# it on almalinux:10 and then install that in our base image.
+# it on almalinux:10 and then install that in our base image. I could probably
+# even skip the rebuild part and just install tini-static on 9 and copy that
+# into 10, since it's statically linked.
 
 
 FROM almalinux:9 as tini-srpm

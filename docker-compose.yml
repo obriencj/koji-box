@@ -93,6 +93,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: koji-boxed-postgres
+    hostname: postgres.koji.box
     environment:
       <<: [*common-database,
            *common-koji-admin]
