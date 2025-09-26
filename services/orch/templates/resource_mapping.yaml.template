@@ -60,3 +60,8 @@ ${ORCH_KEYTAB}:
   type: principal
   resource: ${ORCH_PRINC}
   description: Principal for the Orch service (needs koji host permissions)
+
+${KOJI_HABITUDE_KEYTAB}:
+  type: principal
+  resource: ${KOJI_HABITUDE_PRINC}
+  description: Principal for the koji-habitude service

@@ -41,6 +41,7 @@ x-common-koji-hub: &koji-hub-principals
   ORCH_PRINC: ${ORCH_PRINC:-orch@KOJI.BOX}
   KOJI_CLIENT_PRINC: ${KOJI_CLIENT_PRINC:-friend@KOJI.BOX}
   KOJI_CLIENT_ADMIN_PRINC: ${KOJI_CLIENT_ADMIN_PRINC:-superfriend@KOJI.BOX}
+  KOJI_HABITUDE_PRINC: ${KOJI_HABITUDE_PRINC:-habitude@KOJI.BOX}
 
 # keytabs and certsfor the hub service
 x-common-koji-hub-keytabs: &orch-koji-hub-claims
@@ -159,6 +160,8 @@ services:
     build:
       context: .
       dockerfile: services/orch/Dockerfile
+      additional_context:
+        koji-boxed-common: "service:common"
     container_name: koji-boxed-orch-service
     depends_on:
       kdc:
