@@ -27,51 +27,51 @@ BLUE := \033[0;34m
 NC := \033[0m # No Color
 
 help: ## Show this help message
-	@echo -e "$(BLUE)Boxed Koji - Integration Testing Platform$(NC)"
-	@echo -e ""
-	@echo -e "$(YELLOW)Available targets:$(NC)"
+	@echo  "$(BLUE)Boxed Koji - Integration Testing Platform$(NC)"
+	@echo  ""
+	@echo  "$(YELLOW)Available targets:$(NC)"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@echo -e ""
-	@echo -e "$(YELLOW)Environment Variables:$(NC)"
-	@echo -e "  KOJI_GIT_REPO    - Koji repository URL (default: https://pagure.io/koji.git)"
-	@echo -e "  KOJI_BRANCH      - Git branch to use (default: main)"
+	@echo  ""
+	@echo  "$(YELLOW)Environment Variables:$(NC)"
+	@echo  "  KOJI_GIT_REPO    - Koji repository URL (default: https://pagure.io/koji.git)"
+	@echo  "  KOJI_BRANCH      - Git branch to use (default: main)"
 
 pull-koji: ## Clone/update Koji repository
-	@echo -e "$(BLUE)Pulling Koji repository...$(NC)"
+	@echo  "$(BLUE)Pulling Koji repository...$(NC)"
 	@if [ -d "koji-src" ]; then \
-		echo -e "$(YELLOW)Updating existing repository...$(NC)"; \
+		echo  "$(YELLOW)Updating existing repository...$(NC)"; \
 		cd koji-src && git fetch origin && git checkout $(KOJI_BRANCH) && git pull origin $(KOJI_BRANCH); \
 	else \
-		echo -e "$(YELLOW)Cloning repository...$(NC)"; \
+		echo  "$(YELLOW)Cloning repository...$(NC)"; \
 		git clone -b $(KOJI_BRANCH) $(KOJI_GIT_REPO) koji-src; \
 	fi
-	@echo -e "$(GREEN)Koji repository ready$(NC)"
+	@echo  "$(GREEN)Koji repository ready$(NC)"
 
 build: pull-koji ## Build all container images
-	@echo -e "$(BLUE)Building all container images...$(NC)"
+	@echo  "$(BLUE)Building all container images...$(NC)"
 	# we have to explicitly build the common image first because podman-compose build doesn't support additional_context
 	podman-compose --profile build build common
 	podman-compose build
-	@echo -e "$(GREEN)All images built successfully$(NC)"
+	@echo  "$(GREEN)All images built successfully$(NC)"
 
 build-fast: pull-koji ## Build all container images (cached)
-	@echo -e "$(BLUE)Building all container images (using cache)...$(NC)"
+	@echo  "$(BLUE)Building all container images (using cache)...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) build
-	@echo -e "$(GREEN)All images built successfully$(NC)"
+	@echo  "$(GREEN)All images built successfully$(NC)"
 
 up: down ## Start all services
-	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
+	@echo  "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up -d
-	@echo -e "$(GREEN)Koji environment started$(NC)"
+	@echo  "$(GREEN)Koji environment started$(NC)"
 
 launch: down ## Start all services in the foreground
-	@echo -e "$(BLUE)Starting Koji environment...$(NC)"
+	@echo  "$(BLUE)Starting Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) up --build
 
 down: ## Stop all services
-	@echo -e "$(BLUE)Stopping Koji environment...$(NC)"
+	@echo  "$(BLUE)Stopping Koji environment...$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) down
-	@echo -e "$(GREEN)Koji environment stopped$(NC)"
+	@echo  "$(GREEN)Koji environment stopped$(NC)"
 
 restart: down up ## Restart all services
 
@@ -100,30 +100,30 @@ logs-orch: ## Show logs for Keytab Service
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) logs -f orch-service
 
 status: ## Show status of all services
-	@echo -e "$(BLUE)Service Status:$(NC)"
+	@echo  "$(BLUE)Service Status:$(NC)"
 	podman-compose -f $(COMPOSE_FILE) -p $(PROJECT_NAME) ps
 
 list-principals: ## List Kerberos principals
-	@echo -e "$(BLUE)Listing Kerberos principals...$(NC)"
+	@echo  "$(BLUE)Listing Kerberos principals...$(NC)"
 	podman-compose exec kdc kadmin.local -q "list_principals"
 
 test-kerberos: ## Test Kerberos authentication
-	@echo -e "$(BLUE)Testing Kerberos authentication...$(NC)"
+	@echo  "$(BLUE)Testing Kerberos authentication...$(NC)"
 	podman-compose exec kdc kinit admin/admin@KOJI.BOX -w admin_password
 	podman-compose exec kdc klist
 
 test: ## Run integration tests
-	@echo -e "$(BLUE)Running integration tests...$(NC)"
+	@echo  "$(BLUE)Running integration tests...$(NC)"
 	@if [ -d "tests/test-scripts" ]; then \
 		for script in tests/test-scripts/*.sh; do \
 			if [ -x "$$script" ]; then \
-				echo -e "$(YELLOW)Running $$script...$(NC)"; \
+				echo  "$(YELLOW)Running $$script...$(NC)"; \
 				$$script; \
 			fi; \
 		done; \
-		echo -e "$(GREEN)Integration tests completed$(NC)"; \
+		echo  "$(GREEN)Integration tests completed$(NC)"; \
 	else \
-		echo -e "$(YELLOW)No test scripts found$(NC)"; \
+		echo  "$(YELLOW)No test scripts found$(NC)"; \
 	fi
 
 shell-client: ## Open shell in Koji Client container
@@ -151,14 +151,14 @@ shell-orch: ## Open shell in Orch container
 	podman-compose exec orch-service /bin/bash
 
 purge: ## Remove all containers and images
-	@echo -e "$(BLUE)Cleaning up containers, images, and volumes...$(NC)"
+	@echo  "$(BLUE)Cleaning up containers, images, and volumes...$(NC)"
 	podman-compose down --volumes --rmi all
-	@echo -e "$(GREEN)Cleanup completed$(NC)"
+	@echo  "$(GREEN)Cleanup completed$(NC)"
 
 clean-volumes: ## Remove all volumes
-	@echo -e "$(BLUE)Cleaning up containers and volumes...$(NC)"
+	@echo  "$(BLUE)Cleaning up containers and volumes...$(NC)"
 	podman-compose down --volumes
-	@echo -e "$(GREEN)Volumes cleaned up$(NC)"
+	@echo  "$(GREEN)Volumes cleaned up$(NC)"
 
 rebuild: purge build ## Force rebuild all images
 
@@ -172,20 +172,20 @@ quick-start: build up ## Quick start: build, start, and setup everything
 
 # Maintenance
 backup: ## Backup data volumes
-	@echo -e "$(BLUE)Creating backup...$(NC)"
+	@echo  "$(BLUE)Creating backup...$(NC)"
 	@mkdir -p backups/$$(date +%Y%m%d_%H%M%S)
 	@tar -czf backups/$$(date +%Y%m%d_%H%M%S)/data.tar.gz data/
-	@echo -e "$(GREEN)Backup created in backups/$(NC)"
+	@echo  "$(GREEN)Backup created in backups/$(NC)"
 
 restore: ## Restore from backup (requires BACKUP_DIR)
 	@if [ -z "$(BACKUP_DIR)" ]; then \
-		echo -e "$(RED)Error: BACKUP_DIR not specified$(NC)"; \
+		echo  "$(RED)Error: BACKUP_DIR not specified$(NC)"; \
 		echo "Usage: make restore BACKUP_DIR=backups/YYYYMMDD_HHMMSS"; \
 		exit 1; \
 	fi
-	@echo -e "$(BLUE)Restoring from $(BACKUP_DIR)...$(NC)"
+	@echo  "$(BLUE)Restoring from $(BACKUP_DIR)...$(NC)"
 	@tar -xzf $(BACKUP_DIR)/data.tar.gz
-	@echo -e "$(GREEN)Restore completed$(NC)"
+	@echo  "$(GREEN)Restore completed$(NC)"
 
 
 # The end.

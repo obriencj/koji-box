@@ -72,6 +72,10 @@ x-common-koji-nginx-cert: &orch-nginx-claims
   KOJI_NGINX_CERT_CN: ${KOJI_NGINX_CERT_CN:-koji.box}
   KOJI_NGINX_KEY: ${KOJI_NGINX_KEY:-c016e63d-d250-4b57-af1e-2f35fd5b51fe}
 
+x-common-koji-habitude-keytabs: &orch-koji-habitude-claims
+  KOJI_HABITUDE_KEYTAB: ${KOJI_HABITUDE_KEYTAB:-234e79fb-ace2-434f-84de-e26d6b4355ce}
+  KOJI_HABITUDE_PRINC: ${KOJI_HABITUDE_PRINC:-habitude@KOJI.BOX}
+
 
 services:
 
@@ -335,6 +339,17 @@ services:
           memory: 256m
         reservations:
           memory: 128m
+
+  koji-habitude:
+    extends: koji-client
+    container_name: koji-boxed-koji-habitude
+    environment:
+      <<: [*common-base-settings,
+           *orch-koji-habitude-claims]
+    volumes:
+      - koji_storage:/mnt/koji:ro
+      - ./habitude:/mnt/koji-habitude:ro,Z
+      - ./services/koji-habitude/init.d:/var/lib/koji-client/client-init.d:Z
 
   nginx:
     image: nginx:alpine
