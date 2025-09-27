@@ -44,7 +44,7 @@ x-common-koji-hub: &koji-hub-principals
   KOJI_CLIENT_ADMIN_PRINC: ${KOJI_CLIENT_ADMIN_PRINC:-superfriend@KOJI.BOX}
 
 # keytabs and certsfor the hub service
-x-common-koji-hub-keytabs: &orch-koji-hub-claims
+x-orch-koji-hub-claims: &orch-koji-hub-claims
   KOJI_HUB_KEYTAB: ${KOJI_HUB_KEYTAB:-789490a1-e160-49c2-a1f0-e6db926c054e}
   KOJI_HUB_PRINC: ${KOJI_HUB_PRINC:-HTTP/koji-hub.koji.box@KOJI.BOX}
   KOJI_NGINX_KEYTAB: ${KOJI_NGINX_KEYTAB:-508af9c8-01fd-413a-9865-eeaacca57c7d}
@@ -55,27 +55,27 @@ x-common-koji-hub-keytabs: &orch-koji-hub-claims
   KOJI_HUB_CERT_CN: ${KOJI_HUB_CERT_CN:-koji-hub.koji.box}
   KOJI_HUB_KEY: ${KOJI_HUB_KEY:-b5876248-dc72-498c-af2a-1b28723bee52}
 
-x-common-koji-web-keytab: &orch-koji-web-claims
+x-orch-koji-web-claims: &orch-koji-web-claims
   KOJI_WEB_KEYTAB: ${KOJI_WEB_KEYTAB:-4a8b8ab2-e4ae-40cf-8406-08d539bc338e}
   KOJI_WEB_PRINC: ${KOJI_WEB_PRINC:-HTTP/koji-web.koji.box@KOJI.BOX}
 
-x-common-koji-client-keytabs: &orch-koji-client-claims
+x-orch-koji-client-claims: &orch-koji-client-claims
   KOJI_CLIENT_KEYTAB: ${KOJI_CLIENT_KEYTAB:-a256f75b-8529-48ee-825d-d7ab71d65355}
   KOJI_CLIENT_PRINC: ${KOJI_CLIENT_PRINC:-friend@KOJI.BOX}
   KOJI_CLIENT_ADMIN_KEYTAB: ${KOJI_CLIENT_ADMIN_KEYTAB:-897bab27-3a1b-4bc5-9ba5-8954d206330b}
   KOJI_CLIENT_ADMIN_PRINC: ${KOJI_CLIENT_ADMIN_PRINC:-superfriend@KOJI.BOX}
 
-x-common-koji-worker-keytab: &orch-koji-worker-claims
+x-orch-koji-worker-claims: &orch-koji-worker-claims
   KOJI_WORKER_KEYTAB: ${KOJI_WORKER_KEYTAB:-033dbe9b-d003-47eb-8383-fcc6babc2619}
 
-x-common-koji-nginx-cert: &orch-nginx-claims
-  KOJI_NGINX_CERT: ${KOJI_NGINX_CERT:-482ae0cb-41d3-4a01-88fd-d86c557bc75a}
-  KOJI_NGINX_CERT_CN: ${KOJI_NGINX_CERT_CN:-koji.box}
-  KOJI_NGINX_KEY: ${KOJI_NGINX_KEY:-c016e63d-d250-4b57-af1e-2f35fd5b51fe}
+x-orch-nginx-claims: &orch-nginx-claims
+  NGINX_CERT: ${NGINX_CERT:-482ae0cb-41d3-4a01-88fd-d86c557bc75a}
+  NGINX_CERT_CN: ${NGINX_CERT_CN:-koji.box}
+  NGINX_KEY: ${NGINX_KEY:-c016e63d-d250-4b57-af1e-2f35fd5b51fe}
 
-x-common-ansible: &orch-ansible-claims
-  ANSIBLE_KEYTAB: ${KOJI_ANSIBLE_KEYTAB:-4e344539-8902-4ea1-8797-cd49de9e1c5f}
-  ANSIBLE_PRINC: ${KOJI_ANSIBLE_PRINC:-ansible@KOJI.BOX}
+x-orch-ansible-claims: &orch-ansible-claims
+  ANSIBLE_KEYTAB: ${ANSIBLE_KEYTAB:-4e344539-8902-4ea1-8797-cd49de9e1c5f}
+  ANSIBLE_PRINC: ${ANSIBLE_PRINC:-ansible@KOJI.BOX}
 
 services:
 
@@ -129,6 +129,7 @@ services:
       context: .
       dockerfile: services/kdc/Dockerfile
     container_name: koji-boxed-kdc
+    hostname: kdc.koji.box
     environment:
       <<: [*common-kerberos,
            *common-kadmin]
@@ -161,6 +162,7 @@ services:
       context: .
       dockerfile: services/orch/Dockerfile
     container_name: koji-boxed-orch-service
+    hostname: orch.koji.box
     depends_on:
       kdc:
         condition: service_healthy
@@ -383,6 +385,7 @@ services:
       context: .
       dockerfile: services/ansible-configurator/Dockerfile
     container_name: koji-boxed-ansible-configurator
+    hostname: ansible.koji.box
     depends_on:
       koji-hub:
         condition: service_healthy
@@ -396,7 +399,7 @@ services:
     networks:
       koji-network:
         aliases:
-          - ansible-configurator.koji.box
+          - ansible.koji.box
     restart: "no"  # Run once and exit
     profiles:
       - "ansible"

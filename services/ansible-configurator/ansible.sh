@@ -51,7 +51,6 @@ validate_config() {
 
     if [[ ! -d "/mnt/ansible-configs" ]]; then
         log "No configuration directory found at /ansible-configs"
-        log "Creating minimal example configuration..."
         return 0
     fi
 
