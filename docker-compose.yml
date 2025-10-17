@@ -266,8 +266,6 @@ services:
       - ./data/logs/worker:/var/log/koji-worker:Z
     # these are needed for mock to function inside of a container
     privileged: true
-    cap_add:
-      - SYS_ADMIN
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep -v grep | grep kojid || exit 1"]
       interval: 30s

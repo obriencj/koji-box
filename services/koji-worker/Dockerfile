@@ -22,7 +22,7 @@ RUN mkdir -p \
     /var/cache/mock \
     /etc/mock/koji
 
-RUN chown -R koji:koji \
+RUN chown -R koji:mock \
     /var/tmp/koji \
     /var/log/koji-worker \
     /var/lib/koji-worker \

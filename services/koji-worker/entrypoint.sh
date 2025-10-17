@@ -34,9 +34,7 @@ mkdir -p /etc/kojid
 envsubst < /app/kojid.conf.template > /etc/kojid/kojid.conf
 log "✓ kojid.conf generated"
 
-mkdir -p /etc/mock/koji /var/lib/mock /var/tmp/koji
-
 log "exec'ing kojid"
-exec su koji -c "python3 /app/kojid --fg ${BUILDER_ARGS}"
+exec python3 /app/kojid --fg ${BUILDER_ARGS}
 
 # The end.
