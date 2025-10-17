@@ -19,20 +19,20 @@ RUN mkdir -p \
     /var/log/koji-worker \
     /var/lib/koji-worker \
     /var/lib/mock \
-    /var/cache/mock
+    /var/cache/mock \
+    /etc/mock/koji
 
 RUN chown -R koji:koji \
     /var/tmp/koji \
     /var/log/koji-worker \
     /var/lib/koji-worker \
     /var/lib/mock \
-    /var/cache/mock
+    /var/cache/mock \
+    /etc/mock/koji
 
+RUN usermod koji -aG mock
 
 RUN cp /mnt/koji-src/builder/kojid /app/kojid
-
-# Copy kojid.conf template
-COPY services/koji-worker/kojid.conf.template /app/kojid.conf.template
 
 # Copy kojid.conf template
 COPY services/koji-worker/kojid.conf.template /app/kojid.conf.template

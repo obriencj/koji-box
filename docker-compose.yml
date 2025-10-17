@@ -15,8 +15,8 @@ x-common-kerberos: &common-kerberos
 
 x-common-koji: &common-koji
   KOJI_HUB_URL: ${KOJI_HUB_URL:-https://koji-hub.koji.box/kojihub}
-  KOJI_WEB_URL: ${KOJI_WEB_URL:-http://koji.box/}
-  KOJI_TOP_URL: ${KOJI_TOP_URL:-http://koji.box/kojifiles}
+  KOJI_WEB_URL: ${KOJI_WEB_URL:-https://koji-hub.koji.box/}
+  KOJI_TOP_URL: ${KOJI_TOP_URL:-https://koji-hub.koji.box/kojifiles}
   KOJI_TOP_DIR: ${KOJI_TOP_DIR:-/mnt/koji}
   KOJI_SRC_DIR: ${KOJI_SRC_DIR:-/mnt/koji-src}
 
@@ -173,6 +173,7 @@ services:
            *orch-koji-web-claims,
            *orch-koji-client-claims,
            *orch-koji-worker-claims,
+           *orch-koji-habitude-claims,
            *orch-nginx-claims]
       # our own builtin claims
       ORCH_PRINC: ${ORCH_PRINC:-orch@KOJI.BOX}
@@ -222,6 +223,7 @@ services:
       KOJI_LOG_LEVEL: ${KOJI_LOG_LEVEL:-INFO}
     volumes:
       - koji_storage:/mnt/koji
+      - ./services/koji-hub/hub.conf.d:/etc/koji-hub/hub.conf.d:Z,ro
       - ./services/koji-hub/init.d:/var/lib/koji-hub/hub-init.d:Z
       - ./data/logs/hub:/var/log/koji-hub:Z
     expose:
@@ -262,6 +264,10 @@ services:
     volumes:
       - koji_storage:/mnt/koji
       - ./data/logs/worker:/var/log/koji-worker:Z
+    # these are needed for mock to function inside of a container
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep -v grep | grep kojid || exit 1"]
       interval: 30s
