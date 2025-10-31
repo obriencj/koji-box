@@ -251,6 +251,7 @@ services:
       dockerfile: services/koji-worker/Dockerfile
       additional_context:
         koji-boxed-common: service:common
+        adjutant: ./adjutant
     depends_on:
       koji-hub:
         condition: service_healthy
@@ -264,13 +265,20 @@ services:
     volumes:
       - koji_storage:/mnt/koji
       - ./data/logs/worker:/var/log/koji-worker:Z
+      # Mount podman socket for koji-adjutant container execution
+      - ${PODMAN_SOCKET:-/var/run/podman.sock}:/var/run/podman.sock
     # these are needed for mock to function inside of a container
+    # AND for podman-in-container via socket
     privileged: true
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -v grep | grep kojid || exit 1"]
+      # Check both kojid process AND adjutant monitoring API
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/status || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
+    ports:
+      - "8080:8080"
     deploy:
       resources:
         limits:
@@ -278,7 +286,7 @@ services:
         reservations:
           memory: 512m
     scales:
-      koji-worker: ${KOJI_WORKER_COUNT:-0}
+      koji-worker: ${KOJI_WORKER_COUNT:-1}
 
   koji-web:
     build:

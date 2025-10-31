@@ -49,5 +49,7 @@ LoginCreatesUser = On
 BuildRootTimeout = ${KOJI_BUILD_ROOT_TIMEOUT}
 MaxBuildsPerHost = ${KOJI_MAX_BUILDS_PER_HOST}
 
+# Schedule tasks every 5 seconds
+RunInterval = 5
 
 # The end.

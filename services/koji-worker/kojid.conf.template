@@ -1,6 +1,9 @@
 [kojid]
 ; The number of seconds to sleep between tasks
-; sleeptime=15
+sleeptime=5
+
+; Fast task assignment for testing (grab tasks after 5 seconds)
+task_avail_delay=5
 
 ; The maximum number of jobs that kojid will handle at a time
 maxjobs=${BUILDER_MAX_JOBS}
@@ -171,3 +174,35 @@ keytab = ${KOJID_KEYTAB}
 
 ;allow password in SCM url
 ;allow_password_in_scm_url = False
+
+# Koji-Adjutant Settings (container-based builds)
+# These settings configure koji-adjutant's podman-based task execution
+
+# Default container image for build tasks
+adjutant_task_image_default = docker.io/almalinux/9-minimal:latest
+
+# Image pull policy: always, if-not-present, never
+adjutant_image_pull_policy = if-not-present
+
+# Enable network access in containers (required for SCM checkout)
+adjutant_network_enabled = true
+
+# Hub policy integration for image selection
+adjutant_policy_enabled = true
+adjutant_policy_cache_ttl = 300
+
+# Buildroot initialization (deps, repos, macros)
+adjutant_buildroot_enabled = true
+
+# Monitoring HTTP server
+adjutant_monitoring_enabled = true
+adjutant_monitoring_bind = 0.0.0.0:8080
+
+# Container mounts (comma-separated: source:target:mode:selinux)
+adjutant_container_mounts = /mnt/koji:/mnt/koji:rw:z
+
+# Container timeouts in seconds (comma-separated: pull=X,start=Y,stop_grace=Z)
+adjutant_container_timeouts = pull=300,start=60,stop_grace=20
+
+# Podman socket path (URI format for podman-py)
+adjutant_podman_socket = unix:///var/run/podman.sock

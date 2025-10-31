@@ -35,6 +35,7 @@ envsubst < /app/kojid.conf.template > /etc/kojid/kojid.conf
 log "✓ kojid.conf generated"
 
 log "exec'ing kojid"
-exec python3 /app/kojid --fg ${BUILDER_ARGS}
+# kojid is now installed as console script entry point from koji-adjutant
+exec kojid --fg ${BUILDER_ARGS}
 
 # The end.
